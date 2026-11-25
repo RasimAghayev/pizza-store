@@ -1,0 +1,37 @@
+# The `semgrep` job below pins the official Semgrep container image to a content digest
+# (the image-pull equivalent of the commit-SHA pinning convention used for third-party
+# actions elsewhere in this repo). returntocorp/semgrep-action (the Marketplace Action the
+# original Task spec named) is archived/deprecated upstream in favor of running the CLI
+# directly — see https://github.com/returntocorp/semgrep-action — so this workflow invokes
+# `semgrep scan` directly instead of a Marketplace Action.
+name: SAST
+
+on:
+  pull_request:
+    branches:
+      - test
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Semgrep (p/ci, p/dockerfile, p/github-actions)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep@sha256:0c8dfa7aa1ca8c50233ec9110e8cd88d139dedd603d56507493f74c6f4b3e062  # 1.187.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Run Semgrep
+        run: semgrep scan --config p/ci --config p/dockerfile --config p/github-actions --error --metrics=off .
+
+  bandit:
+    name: Bandit (Python SAST, placeholder)
+    runs-on: ubuntu-latest
+    steps:
+      # job-level `if` can't call hashFiles(); the guard lives on the step instead.
+      # Inert until Phase 6 (Epic #10) adds backend/ — self-activates with no workflow edit.
+      - name: Placeholder (active once backend/ exists)
+        if: ${{ hashFiles('backend/**') != '' }}
+        run: echo "backend/ detected — wire bandit -r backend/ here (Phase 6)."

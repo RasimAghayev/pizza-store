@@ -1,0 +1,44 @@
+# Third-party actions below are pinned to a full commit SHA, not a tag, per master-prompt
+# §9. The trailing `# vX.Y.Z` comment names the human-readable release the SHA corresponds
+# to; Renovate's `github-actions` manager tracks the pinned digest and opens an update PR
+# (targeting `preview`, per renovate.json) when a newer release is published.
+name: CodeQL
+
+on:
+  pull_request:
+    branches:
+      - test
+  schedule:
+    # CodeQL's recommended baseline cadence: catches newly-disclosed query coverage against
+    # otherwise-unchanged code, independent of PR activity.
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # No backend/ (Python) or frontend/ (TypeScript) source exists yet; both languages
+        # are extraction-based (no build step), so this analyzes an empty target today and
+        # starts covering real code the moment Phase 6/7 add it, with no workflow edit.
+        language:
+          - python
+          - javascript-typescript
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@915412ff23e8b7659517e607487dbeae018f2934  # v4.39.5
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@915412ff23e8b7659517e607487dbeae018f2934  # v4.39.5
+        with:
+          category: "/language:${{ matrix.language }}"

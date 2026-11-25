@@ -65,3 +65,33 @@ it reaches production).
   `hashFiles('frontend/**')`, same pattern as `quality-gate.yml`. Placeholder today; Phase 6
   (Epic #10) wires Django migration checks and API integration tests against the live stack
   validated by `compose-validate`, and Phase 7 (Epic #11) adds Angular e2e smoke tests.
+
+## SAST / code scanning
+
+**`codeql.yml` triggers:** `pull_request` targeting `test`, plus a weekly `schedule`
+(Monday 03:00 UTC) so query-coverage improvements are caught against otherwise-unchanged code.
+**Permissions:** `contents: read`, `security-events: write` — the one workflow in this repo
+that needs the latter, scoped only here, to upload SARIF results.
+
+- `analyze` matrix job: `github/codeql-action` `init` + `analyze` for `python` and
+  `javascript-typescript`. Both are extraction-based languages with no build step, so no
+  `Autobuild` step is needed (GitHub's own starter template omits it for these languages too).
+  No `backend/`/`frontend/` source exists yet; the workflow analyzes an empty target today and
+  starts covering real code the moment Phase 6/7 land, with no workflow edit required.
+
+**`sast.yml` triggers:** `pull_request` targeting `test`. **Permissions:** `contents: read`.
+
+- `semgrep` job: runs `semgrep scan` with the `p/ci`, `p/dockerfile`, and `p/github-actions`
+  registry rulesets directly inside the official `semgrep/semgrep` container image, pinned to
+  a content digest (the image-pull equivalent of this repo's commit-SHA pinning convention
+  for actions). `returntocorp/semgrep-action` — the Marketplace Action named in the original
+  Task spec — is archived/deprecated upstream in favor of invoking the CLI directly, so this
+  workflow does that instead of pinning a dead action. `p/ci` and `p/github-actions` have real
+  targets today (this repo's own workflow files, `renovate.json`, `.github/dependabot.yml`);
+  `p/dockerfile` has none yet (no `Dockerfile` exists before Phase 6/7) and is a no-op until
+  then. A real run against this repository's content, pre-fix, caught one genuine finding —
+  `.github/dependabot.yml` missing a Dependabot `cooldown` period — fixed in the same change
+  that added this workflow, same pattern as the linters Task #70 added catching real
+  pre-existing issues.
+- `bandit` job: guarded on `hashFiles('backend/**')`, same placeholder pattern as the other
+  Phase 3 workflows. Inert until Phase 6 wires `bandit -r backend/`.
