@@ -1,0 +1,23 @@
+networks:
+  edge-net:
+    driver: bridge
+  data-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  mongodb-data:
+  redis-data:
+  rabbitmq-data:
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  mongo_root_password:
+    file: ./secrets/mongo_root_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  rabbitmq_password:
+    file: ./secrets/rabbitmq_password.txt
+
+services: {}
