@@ -1,0 +1,12 @@
+# Routine version updates (Python/Node/Docker) are owned by Renovate (see renovate.json).
+# Dependabot here is scoped to GitHub Actions version updates; its security-alert/update
+# role for all ecosystems is controlled via repository Security settings, not this file.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "preview"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "type:dependency"

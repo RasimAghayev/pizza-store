@@ -1,0 +1,47 @@
+name: Branch Source Validation
+
+# GitHub branch protection alone cannot restrict *which* branch a PR is opened
+# from. This workflow enforces: main only accepts PRs from `test`; `test` only
+# accepts PRs from allowed prefixes or `preview`. Applies to bots too.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edit]
+    branches:
+      - main
+      - test
+
+permissions:
+  pull-requests: read
+
+jobs:
+  validate-source-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce allowed source branch
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -e
+          echo "Base: $BASE_REF  Head: $HEAD_REF"
+
+          if [ "$BASE_REF" = "main" ]; then
+            if [ "$HEAD_REF" != "test" ]; then
+              echo "::error::main only accepts pull requests from 'test' (got '$HEAD_REF')."
+              exit 1
+            fi
+            exit 0
+          fi
+
+          if [ "$BASE_REF" = "test" ]; then
+            case "$HEAD_REF" in
+              preview|feature/*|infrastructure/*|bugfix/*|hotfix/*|security/*|refactor/*|docs/*|test/*|renovate/*|dependency/*)
+                exit 0
+                ;;
+              *)
+                echo "::error::'test' does not accept pull requests from '$HEAD_REF'."
+                exit 1
+                ;;
+            esac
+          fi

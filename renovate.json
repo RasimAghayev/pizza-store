@@ -1,0 +1,34 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "baseBranches": ["preview"],
+  "labels": ["type:dependency"],
+  "dependencyDashboard": true,
+  "packageRules": [
+    {
+      "matchManagers": ["pip_requirements", "pip_setup", "poetry"],
+      "groupName": "backend (Python) dependencies"
+    },
+    {
+      "matchManagers": ["npm"],
+      "groupName": "frontend (npm) dependencies"
+    },
+    {
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "groupName": "Docker image dependencies"
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "labels": ["type:dependency", "priority:high"],
+      "automerge": false
+    },
+    {
+      "matchUpdateTypes": ["patch", "minor"],
+      "matchCurrentVersion": "!/^0/",
+      "automerge": false
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["type:security", "priority:critical"]
+  }
+}
