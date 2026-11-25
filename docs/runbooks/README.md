@@ -1,5 +1,5 @@
 # Runbooks
 
-Addım-addım operativ prosedurlar (deploy, rollback, disaster recovery, troubleshooting).
+Step-by-step operational procedures (deploy, rollback, disaster recovery, troubleshooting).
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

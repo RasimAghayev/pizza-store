@@ -1,5 +1,5 @@
 # Docker Swarm
 
-Overlay network, secrets, configs, replicas, rolling update manifestləri.
+Overlay network, secrets, configs, replicas, rolling update manifests.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

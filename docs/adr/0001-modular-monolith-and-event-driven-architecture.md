@@ -4,55 +4,54 @@
 
 Accepted
 
-## Kontekst
+## Context
 
-Pizza Store Platform real restoran şəbəkəsinin bütün əməliyyatlarını (müştəri, sifariş,
-ödəniş, kuryer, inventar, loyalty, idarəetmə) idarə edəcək. Layihə sıfırdan başlayır,
-real yük və domain sərhədləri hələ təcrübə ilə sınanmayıb.
+The Pizza Store Platform will manage all operations (customer, order, payment, courier,
+inventory, loyalty, management) of a real restaurant chain. The project is starting from
+scratch, and real load and domain boundaries haven't been proven by experience yet.
 
-İki əsas variant nəzərdən keçirildi:
+Two main options were considered:
 
-1. Başlanğıcdan Microservices arxitekturası.
-2. Modular Monolith + Event-Driven Architecture (EDA), gələcəkdə seçilmiş modulların
-   microservice-ə ayrılması imkanı ilə.
+1. A Microservices architecture from the start.
+2. Modular Monolith + Event-Driven Architecture (EDA), with the option to split selected
+   modules into microservices later.
 
-## Qərar
+## Decision
 
-Modular Monolith + EDA seçilir.
+Modular Monolith + EDA is chosen.
 
-- Django daxilində domain-lərə görə aydın ayrılmış app-lar (bounded context): identity,
-  customers, restaurants, branches, menu, products, pricing, cart, orders, payments,
-  kitchen, inventory, couriers, delivery, loyalty, notifications, reviews, analytics, audit.
-- Modullar arasında birbaşa asılılıq minimuma endirilir; sinxron deyil, RabbitMQ üzərindən
-  domain event-ləri ilə kommunikasiya üstünlük təşkil edir (OrderCreated, PaymentCompleted
-  və s.).
-- Clean Architecture, DDD, SOLID, Repository Pattern, Service Layer, Dependency Injection
-  tətbiq olunur ki, modul sərhədləri kod səviyyəsində də qorunsun.
+- Clearly separated apps by domain (bounded context) within Django: identity, customers,
+  restaurants, branches, menu, products, pricing, cart, orders, payments, kitchen, inventory,
+  couriers, delivery, loyalty, notifications, reviews, analytics, audit.
+- Direct dependencies between modules are minimized; communication favors domain events over
+  RabbitMQ rather than synchronous calls (OrderCreated, PaymentCompleted, etc.).
+- Clean Architecture, DDD, SOLID, Repository Pattern, Service Layer, and Dependency Injection
+  are applied so that module boundaries are also protected at the code level.
 
-## Səbəb
+## Reason
 
-- Tək deployment vahidi ilə ilk mərhələdə operativ mürəkkəbliyi (çoxsaylı servis, şəbəkə,
-  distributed transaction) aşağı saxlayır.
-- Bounded context-lər əvvəlcədən aydın ayrıldığına görə, real scaling ehtiyacı yarandıqda
-  (məsələn, delivery tracking və ya notification yüksək yük alarsa) həmin modul ayrıca
-  microservice-ə çıxarıla bilər — monolit bunu əngəlləmir, sadəcə indi məcbur etmir.
-- RabbitMQ ilə EDA, monolit daxilində belə, modullar arasında sıx coupling yaranmasının
-  qarşısını alır və gələcək ayrılmağı asanlaşdırır.
+- A single deployment unit keeps operational complexity (multiple services, networking,
+  distributed transactions) low in the first stage.
+- Because bounded contexts are already clearly separated, a module can be extracted into its
+  own microservice once real scaling need arises (e.g. if delivery tracking or notifications
+  take on high load) — the monolith doesn't block this, it simply doesn't force it now.
+- EDA via RabbitMQ, even within a monolith, prevents tight coupling from forming between
+  modules and makes a future split easier.
 
-## Nəticələr
+## Consequences
 
-- Transactional Outbox Pattern məcburidir: PostgreSQL transaction uğurlu olub RabbitMQ
-  əlçatmaz olduqda event itməməlidir.
-- Idempotent consumer-lər məcburidir: eyni event təkrar gəlsə, ödəniş/sifariş əməliyyatı
-  təkrar icra olunmamalıdır.
-- Mikroservislərə keçid yalnız real domain və scaling ehtiyacı sübut olunduqda, ayrıca ADR
-  ilə qiymətləndirilir — süni mikroservis yaradılmır.
+- The Transactional Outbox Pattern is mandatory: if a PostgreSQL transaction succeeds but
+  RabbitMQ is unreachable, the event must not be lost.
+- Idempotent consumers are mandatory: if the same event arrives twice, the payment/order
+  operation must not be executed twice.
+- A move to microservices is only evaluated via a separate ADR once a real domain and scaling
+  need is proven — no microservice is created artificially.
 
-## Alternativlər
+## Alternatives
 
-- **Başlanğıcdan Microservices:** rədd edildi — ilk gündən distributed system
-  mürəkkəbliyi (service discovery, distributed tracing, data consistency across
-  services) biznes dəyəri yaratmadan əməliyyat xərci artırır.
-- **Klassik monolit (EDA-sız, birbaşa funksiya çağırışları ilə):** rədd edildi — modullar
-  arası sıx asılılıq yaradır, gələcək ayrılmağı çətinləşdirir, audit/retry/replay kimi
-  tələbləri təbii dəstəkləmir.
+- **Microservices from the start:** rejected — from day one, distributed system complexity
+  (service discovery, distributed tracing, data consistency across services) would add
+  operational cost without creating business value.
+- **Classic monolith (without EDA, using direct function calls):** rejected — creates tight
+  coupling between modules, makes a future split harder, and doesn't naturally support
+  requirements like audit/retry/replay.

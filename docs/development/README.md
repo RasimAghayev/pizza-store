@@ -1,5 +1,5 @@
 # Development
 
-Local setup, Docker development mühiti, contributing təlimatları.
+Local setup, Docker development environment, contributing guidelines.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

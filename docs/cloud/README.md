@@ -1,5 +1,5 @@
 # Cloud
 
-AWS/GCP/Azure üçün xərc, təhlükəsizlik, backup, scaling müqayisəsi (resurs yaradılmadan, sənəd səviyyəsində).
+Cost, security, backup, and scaling comparison for AWS/GCP/Azure (documentation-level only, no resources are created).
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.
