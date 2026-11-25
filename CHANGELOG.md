@@ -10,3 +10,5 @@ Versiyalaşdırma [Semantic Versioning](https://semver.org/) qaydasına uyğundu
 - Repository foundation: folder architecture (`backend/`, `frontend/`, `infrastructure/`,
   `docs/`, `scripts/`, `.github/`), community standards faylları, branch strategiyası
   sənədləşməsi, GitHub Issue/PR şablonları, Dependabot/Renovate konfiqurasiyası.
+- GitHub repository yaradıldı, `main`/`test`/`preview` branch-ləri push edildi, `main` və
+  `test` üçün ruleset-lər (PR tələbi, status check, force-push/delete qadağası) aktivləşdirildi.
