@@ -1,5 +1,5 @@
 # Docker
 
-Multi-stage Dockerfile-lar, hər servis üçün non-root user, healthcheck, resource limits.
+Multi-stage Dockerfiles, non-root user per service, healthchecks, resource limits.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

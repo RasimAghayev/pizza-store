@@ -1,5 +1,5 @@
 # Terraform
 
-Cloud provider-lərə bağlılıq yaratmadan infrastructure-as-code skeleton-u.
+Infrastructure-as-code skeleton without locking into any specific cloud provider.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

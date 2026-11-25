@@ -1,5 +1,5 @@
 # Security
 
-Security Architecture, OWASP ASVS/Top 10 tətbiqi, PCI DSS prinsipləri, privacy/retention siyasəti.
+Security Architecture, OWASP ASVS/Top 10 application, PCI DSS principles, privacy/retention policy.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

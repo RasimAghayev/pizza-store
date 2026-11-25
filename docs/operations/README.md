@@ -1,5 +1,5 @@
 # Operations
 
-Monitoring, logging, alerting, incident response prosedurları.
+Monitoring, logging, alerting, incident response procedures.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.
