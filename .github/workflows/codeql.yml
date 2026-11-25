@@ -24,21 +24,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # No backend/ (Python) or frontend/ (TypeScript) source exists yet; both languages
-        # are extraction-based (no build step), so this analyzes an empty target today and
-        # starts covering real code the moment Phase 6/7 add it, with no workflow edit.
-        language:
-          - python
-          - javascript-typescript
+        include:
+          # `actions` scans .github/workflows/*.yml, a real target that exists today — this
+          # is also GitHub's own recommended default-setup language for this repository
+          # (confirmed via GET /repos/.../code-scanning/default-setup), so it runs
+          # unconditionally. CodeQL hard-errors ("could not process any code written in
+          # <language>") rather than succeeding on an empty database, so python/
+          # javascript-typescript — no backend/frontend source exists yet — are guarded and
+          # self-activate once Phase 6/7 add real source matching their pattern below.
+          - language: actions
+            pattern: ".github/workflows/**"
+          - language: python
+            pattern: "backend/**/*.py"
+          - language: javascript-typescript
+            pattern: "frontend/**/*.ts"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Initialize CodeQL
+        if: ${{ hashFiles(matrix.pattern) != '' }}
         uses: github/codeql-action/init@915412ff23e8b7659517e607487dbeae018f2934  # v4.39.5
         with:
           languages: ${{ matrix.language }}
 
       - name: Perform CodeQL analysis
+        if: ${{ hashFiles(matrix.pattern) != '' }}
         uses: github/codeql-action/analyze@915412ff23e8b7659517e607487dbeae018f2934  # v4.39.5
         with:
           category: "/language:${{ matrix.language }}"

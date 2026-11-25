@@ -73,11 +73,20 @@ it reaches production).
 **Permissions:** `contents: read`, `security-events: write` — the one workflow in this repo
 that needs the latter, scoped only here, to upload SARIF results.
 
-- `analyze` matrix job: `github/codeql-action` `init` + `analyze` for `python` and
-  `javascript-typescript`. Both are extraction-based languages with no build step, so no
-  `Autobuild` step is needed (GitHub's own starter template omits it for these languages too).
-  No `backend/`/`frontend/` source exists yet; the workflow analyzes an empty target today and
-  starts covering real code the moment Phase 6/7 land, with no workflow edit required.
+- `analyze` matrix job: `github/codeql-action` `init` + `analyze` for `actions`, `python`, and
+  `javascript-typescript`. `actions` (scans `.github/workflows/*.yml`) runs unconditionally —
+  it is also GitHub's own recommended default-setup language for this repository — and is the
+  one entry that is genuinely active today, against real content. `python` and
+  `javascript-typescript` are guarded per-language with `hashFiles('backend/**/*.py')` /
+  `hashFiles('frontend/**/*.ts')`: unlike the harmless echo placeholders elsewhere in this
+  phase, CodeQL hard-errors ("CodeQL could not process any code written in \<language\>")
+  rather than succeeding against an empty database when zero files of that language exist
+  anywhere in the repo — confirmed on a real CI run before this guard was added. Both
+  self-activate, no workflow edit needed, the moment Phase 6/7 add real source matching their
+  pattern; until then, Epic #7's "CodeQL code scanning is active" criterion is satisfied by
+  the `actions` language only, same deferral already true for the `python`/
+  `javascript-typescript` halves of `backend-quality`/`frontend-quality`/`bandit` elsewhere in
+  Phase 3.
 
 **`sast.yml` triggers:** `pull_request` targeting `test`. **Permissions:** `contents: read`.
 
