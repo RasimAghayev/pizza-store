@@ -65,3 +65,42 @@ it reaches production).
   `hashFiles('frontend/**')`, same pattern as `quality-gate.yml`. Placeholder today; Phase 6
   (Epic #10) wires Django migration checks and API integration tests against the live stack
   validated by `compose-validate`, and Phase 7 (Epic #11) adds Angular e2e smoke tests.
+
+## SAST / code scanning
+
+**`codeql.yml` triggers:** `pull_request` targeting `test`, plus a weekly `schedule`
+(Monday 03:00 UTC) so query-coverage improvements are caught against otherwise-unchanged code.
+**Permissions:** `contents: read`, `security-events: write` — the one workflow in this repo
+that needs the latter, scoped only here, to upload SARIF results.
+
+- `analyze` matrix job: `github/codeql-action` `init` + `analyze` for `actions`, `python`, and
+  `javascript-typescript`. `actions` (scans `.github/workflows/*.yml`) runs unconditionally —
+  it is also GitHub's own recommended default-setup language for this repository — and is the
+  one entry that is genuinely active today, against real content. `python` and
+  `javascript-typescript` are guarded per-language with `hashFiles('backend/**/*.py')` /
+  `hashFiles('frontend/**/*.ts')`: unlike the harmless echo placeholders elsewhere in this
+  phase, CodeQL hard-errors ("CodeQL could not process any code written in \<language\>")
+  rather than succeeding against an empty database when zero files of that language exist
+  anywhere in the repo — confirmed on a real CI run before this guard was added. Both
+  self-activate, no workflow edit needed, the moment Phase 6/7 add real source matching their
+  pattern; until then, Epic #7's "CodeQL code scanning is active" criterion is satisfied by
+  the `actions` language only, same deferral already true for the `python`/
+  `javascript-typescript` halves of `backend-quality`/`frontend-quality`/`bandit` elsewhere in
+  Phase 3.
+
+**`sast.yml` triggers:** `pull_request` targeting `test`. **Permissions:** `contents: read`.
+
+- `semgrep` job: runs `semgrep scan` with the `p/ci`, `p/dockerfile`, and `p/github-actions`
+  registry rulesets directly inside the official `semgrep/semgrep` container image, pinned to
+  a content digest (the image-pull equivalent of this repo's commit-SHA pinning convention
+  for actions). `returntocorp/semgrep-action` — the Marketplace Action named in the original
+  Task spec — is archived/deprecated upstream in favor of invoking the CLI directly, so this
+  workflow does that instead of pinning a dead action. `p/ci` and `p/github-actions` have real
+  targets today (this repo's own workflow files, `renovate.json`, `.github/dependabot.yml`);
+  `p/dockerfile` has none yet (no `Dockerfile` exists before Phase 6/7) and is a no-op until
+  then. A real run against this repository's content, pre-fix, caught one genuine finding —
+  `.github/dependabot.yml` missing a Dependabot `cooldown` period — fixed in the same change
+  that added this workflow, same pattern as the linters Task #70 added catching real
+  pre-existing issues.
+- `bandit` job: guarded on `hashFiles('backend/**')`, same placeholder pattern as the other
+  Phase 3 workflows. Inert until Phase 6 wires `bandit -r backend/`.
