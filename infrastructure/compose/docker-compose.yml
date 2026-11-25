@@ -87,3 +87,27 @@ services:
       retries: 5
     mem_limit: 256m
     cpus: "0.5"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+    command: >
+      sh -c 'export RABBITMQ_DEFAULT_PASS="$$(cat /run/secrets/rabbitmq_password)" && exec docker-entrypoint.sh rabbitmq-server'
+    secrets:
+      - rabbitmq_password
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - data-net
+    ports:
+      - "${RABBITMQ_PORT}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    cpus: "1.0"
