@@ -81,8 +81,8 @@ domain events (ADR 0001), and any such synchronous read is called out by name in
 README per the cross-file dependency comment convention.
 
 This contract set is written now so Phase 6 modules are built against it from the start; the
-CI job that runs `lint-imports` against it is added in Phase 3 (CI/CD & Quality, per Issue
-#7/Epic Phase 3) — this ADR does not itself add CI.
+CI job that runs `lint-imports` against it is added in Phase 3 (CI/CD & Quality, per Issue #7
+/ Epic Phase 3) — this ADR does not itself add CI.
 
 ### Frontend: feature layout inside one Angular app
 

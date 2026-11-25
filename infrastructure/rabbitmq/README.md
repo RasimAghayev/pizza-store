@@ -19,7 +19,7 @@ demotion, so the server process still ends up running as the non-root `rabbitmq`
 messages while building Phase 6's publishers/consumers; this port is never exposed beyond
 local Compose in any later deployment target):
 
-```
+```text
 http://localhost:${RABBITMQ_MANAGEMENT_PORT:-15672}
 ```
 
