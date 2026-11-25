@@ -2,8 +2,11 @@
 
 # NOTE: targets below assume infrastructure/compose/docker-compose.yml, added in Phase 2
 # (Local Docker Infrastructure). Running them before that file exists will fail.
+#
+# --env-file .env is required because Compose otherwise looks for .env next to the compose
+# file (infrastructure/compose/), not at the repo root where .env.example documents it.
 
-COMPOSE := docker compose -f infrastructure/compose/docker-compose.yml
+COMPOSE := docker compose -f infrastructure/compose/docker-compose.yml --env-file .env
 
 up:
 	$(COMPOSE) up -d
