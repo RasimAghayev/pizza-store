@@ -1,6 +1,6 @@
 ---
 name: "Security Task"
-about: "Təhlükəsizlik tələbi, scan, hardening işi"
+about: "Security requirement, scan, or hardening work"
 title: "[Security Task] "
 labels: ["type:security"]
 ---
@@ -19,27 +19,27 @@ labels: ["type:security"]
 
 ### Dependencies / Prerequisites
 
-<!-- Hansı Issue-lar əvvəlcə Done olmalıdır -->
+<!-- Which Issues must be Done first -->
 
 ### Objective
 
-<!-- Bu Issue-nun məqsədi -->
+<!-- The goal of this Issue -->
 
 ### Business Context
 
-<!-- Bu niyə lazımdır -->
+<!-- Why this is needed -->
 
 ### Technical Context
 
-<!-- Mövcud vəziyyət, əlaqəli kod/infrastruktur -->
+<!-- Current state, related code/infrastructure -->
 
 ### Architecture Requirements
 
-<!-- İstifadə olunacaq pattern/texnologiya -->
+<!-- Pattern/technology to be used -->
 
 ### Implementation Prompt
 
-<!-- Növbəti agentin birbaşa icra edə biləcəyi konkret təsvir -->
+<!-- Concrete description the next agent can execute directly -->
 
 ### Subtasks
 
@@ -47,15 +47,15 @@ labels: ["type:security"]
 
 ### Files & Directories
 
-<!-- Dəyişdiriləcək/yaradılacaq fayl və qovluqlar -->
+<!-- Files and directories to be changed/created -->
 
 ### Test Requirements
 
-<!-- Yazılmalı/icra edilməli testlər -->
+<!-- Tests to be written/run -->
 
 ### Security Requirements
 
-<!-- Tətbiq olunmalı security yoxlamaları -->
+<!-- Security checks to apply -->
 
 ### Acceptance Criteria
 
@@ -63,17 +63,17 @@ labels: ["type:security"]
 
 ### Definition of Done
 
-- [ ] Testlər yazılıb və green-dir
-- [ ] Documentation yenilənib
+- [ ] Tests written and green
+- [ ] Documentation updated
 - [ ] CI green
-- [ ] PR Issue-ya bağlıdır
+- [ ] PR linked to Issue
 
 ### Documentation Requirements
 
-<!-- docs/ daxilində yenilənəcək sənəd -->
+<!-- Document under docs/ to be updated -->
 
 ### Expected Deliverables
 
 ### PR Requirements
 
-<!-- bax .github/PULL_REQUEST_TEMPLATE.md -->
+<!-- see .github/PULL_REQUEST_TEMPLATE.md -->

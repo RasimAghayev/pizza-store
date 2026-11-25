@@ -1,5 +1,5 @@
 # Redis
 
-Cache, session, rate limiting, OTP, kuryerin son koordinatları, order status cache. Source of truth deyil.
+Cache, session, rate limiting, OTP, courier's last known coordinates, order status cache. Not a source of truth.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

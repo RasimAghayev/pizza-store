@@ -1,5 +1,5 @@
 # RabbitMQ
 
-Domain event-lər, exchange/queue/routing key strukturu, Dead Letter Queue, Transactional Outbox dəstəyi.
+Domain events, exchange/queue/routing key structure, Dead Letter Queue, Transactional Outbox support.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

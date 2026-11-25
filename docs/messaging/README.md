@@ -1,5 +1,5 @@
 # Messaging
 
-RabbitMQ topology, event naming convention, event schema/versioning, Outbox Pattern, retry/DLQ siyasəti.
+RabbitMQ topology, event naming convention, event schema/versioning, Outbox Pattern, retry/DLQ policy.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

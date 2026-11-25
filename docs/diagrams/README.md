@@ -1,5 +1,5 @@
 # Diagrams
 
-Sequence və flow diaqramları (auth, order, payment, delivery).
+Sequence and flow diagrams (auth, order, payment, delivery).
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.
