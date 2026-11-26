@@ -11,4 +11,4 @@ domain/business logic for a specific module (that belongs under `backend/apps/<m
   [ADR 0005](../../docs/adr/0005-event-topology-and-outbox-design.md). Not added yet as of
   this file's creation (Issue #126) — see that Issue for status.
 - `api/` — the custom DRF exception handler and API-conventions-proof endpoint
-  (Issue #128, Phase 6). Not added yet as of this file's creation.
+  (Issue #128, Phase 6). See [docs/api/conventions.md](../../docs/api/conventions.md).

@@ -177,8 +177,8 @@ services:
       postgres:
         condition: service_healthy
     # Deliberately data-net only, not edge-net/nginx -- ADR 0006's CORS-allowlist design
-    # assumes a browser calls this origin directly (see docs/api/conventions.md once Issue
-    # #128 adds it), which would be pointless under an Nginx-unified origin.
+    # assumes a browser calls this origin directly (see docs/api/conventions.md), which
+    # would be pointless under an Nginx-unified origin.
     networks:
       - data-net
     ports:

@@ -2,4 +2,5 @@
 
 OpenAPI/Swagger documentation and API conventions.
 
-> Status: Phase 0 — folder structure created, implementation not yet started.
+See [conventions.md](conventions.md) for versioning, the error envelope, and the live
+`/api/schema/` and `/api/docs/` endpoints (Phase 6, Issue #128).
