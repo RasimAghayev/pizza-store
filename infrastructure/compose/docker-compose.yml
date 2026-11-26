@@ -333,3 +333,46 @@ services:
         condition: service_started
     mem_limit: 128m
     cpus: "0.25"
+
+  # --- Phase 4 tracing skeleton (Task #94) -----------------------------------------
+
+  # In-memory storage only: traces are lost on restart. Acceptable for this baseline --
+  # no application exists yet to emit real traces, and a persistent trace store is a
+  # decision for Phase 6/7 once real retention requirements exist.
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    networks:
+      - monitoring-net
+    ports:
+      - "${JAEGER_UI_PORT}:16686"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:16686/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    cpus: "0.5"
+
+  # otel/opentelemetry-collector-contrib is a distroless, single-binary image (no shell, no
+  # wget/curl -- verified empirically, same situation as loki above), so no CMD-SHELL
+  # healthcheck is possible here either. Jaeger receiving the spans this collector forwards
+  # (proven by the synthetic-span validation for this Task) is the real signal.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.166.0
+    restart: unless-stopped
+    volumes:
+      - ../tracing/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+    networks:
+      - monitoring-net
+    ports:
+      - "${OTEL_COLLECTOR_GRPC_PORT}:4317"
+      - "${OTEL_COLLECTOR_HTTP_PORT}:4318"
+    # calls jaeger:4317 (OTLP/gRPC) -- see infrastructure/tracing/otel-collector-config.yml
+    depends_on:
+      jaeger:
+        condition: service_healthy
+    mem_limit: 256m
+    cpus: "0.5"

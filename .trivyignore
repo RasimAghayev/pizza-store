@@ -26,8 +26,10 @@
 # hasn't republished against a newer Go toolchain yet), different vendor. Also present in
 # promtail (Task #93/Phase 4), which is on the same stale-toolchain footing -- see the
 # dedicated promtail note near the end of this file for why it can't be bumped past 3.6.11.
+# jaeger (Task #94/Phase 4) adds the same set again, bundling Go 1.25.4 at its own current
+# latest release (1.76.0) -- not yet rebuilt against a patched toolchain either.
 # Affects: postgres:16-alpine, mongo:7, grafana/grafana:13.3.2, percona/mongodb_exporter:0.54.0,
-#   grafana/promtail:3.6.11
+#   grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
 # -----------------------------------------------------------------------------------------
 CVE-2025-61726
 CVE-2025-61729
@@ -65,9 +67,11 @@ CVE-2026-97031
 # Also present in grafana, prometheus, and mongodb_exporter's own vendored x/net (Task #92/
 # Phase 4) at their current latest release -- same situation, different vendor. promtail
 # (Task #93/Phase 4) adds three more x/net CVE IDs beyond grafana/prometheus/mongodb_exporter's
-# set, same root cause.
+# set, same root cause. jaeger (Task #94/Phase 4) shares the same four CVE IDs as this block
+# plus three more already covered by the gosu/stdlib block above (stdlib and x/net disclosed
+# the same underlying flaws for a few of these IDs).
 # Affects: mongo:7, grafana/grafana:13.3.2, prom/prometheus:v3.16.0,
-#   percona/mongodb_exporter:0.54.0, grafana/promtail:3.6.11
+#   percona/mongodb_exporter:0.54.0, grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
 # -----------------------------------------------------------------------------------------
 CVE-2026-78661
 CVE-2026-25681
@@ -106,7 +110,8 @@ CVE-2026-93990
 
 # openssl (libcrypto3/libssl3, or libssl3t64/openssl on promtail's Ubuntu base) -- Affects:
 # nginxinc/nginx-unprivileged:1.27-alpine, rabbitmq:3-management-alpine, redis:7-alpine,
-# grafana/promtail:3.6.11 (Task #93/Phase 4)
+# grafana/promtail:3.6.11 (Task #93/Phase 4), jaegertracing/all-in-one:1.76.0 (Task #94/
+# Phase 4, Alpine 3.22 base)
 CVE-2025-15467
 CVE-2025-69421
 CVE-2026-124709
@@ -166,11 +171,12 @@ CVE-2026-87636
 CVE-2026-9947
 
 # musl/musl-utils -- Affects: nginxinc/nginx-unprivileged:1.27-alpine,
-# rabbitmq:3-management-alpine
+# rabbitmq:3-management-alpine, jaegertracing/all-in-one:1.76.0 (Task #94/Phase 4)
 CVE-2026-107891
 CVE-2026-40200
 
-# zlib -- Affects: nginxinc/nginx-unprivileged:1.27-alpine, rabbitmq:3-management-alpine
+# zlib -- Affects: nginxinc/nginx-unprivileged:1.27-alpine, rabbitmq:3-management-alpine,
+# jaegertracing/all-in-one:1.76.0 (Task #94/Phase 4)
 CVE-2026-22184
 CVE-2026-85091
 
@@ -204,12 +210,15 @@ CVE-2026-28377
 CVE-2026-116587
 
 # -----------------------------------------------------------------------------------------
-# Everything below is grafana/promtail:3.6.11 (Task #93/Phase 4), which deliberately pins
-# older than Loki's own 3.7.10: Grafana has stopped publishing grafana/promtail image builds
-# past 3.6.11 (confirmed directly against Docker Hub, not assumed -- the project is being
-# wound down in favor of Grafana Alloy). 3.6.11 is the real current latest, so these findings
-# cannot be cleared by a version bump the way Loki's were; they're genuine "fixed upstream,
-# not yet in a republished image" waivers like the rest of this file.
+# Most of what's below is grafana/promtail:3.6.11 (Task #93/Phase 4), which deliberately
+# pins older than Loki's own 3.7.10: Grafana has stopped publishing grafana/promtail image
+# builds past 3.6.11 (confirmed directly against Docker Hub, not assumed -- the project is
+# being wound down in favor of Grafana Alloy). 3.6.11 is the real current latest, so these
+# findings cannot be cleared by a version bump the way Loki's were; they're genuine "fixed
+# upstream, not yet in a republished image" waivers like the rest of this file. A few blocks
+# below are also shared with jaegertracing/all-in-one:1.76.0 (Task #94/Phase 4) -- two
+# unrelated Go binaries vendoring the same stale modules -- each block's own Affects line is
+# the source of truth for which image(s) it covers, not this header.
 # -----------------------------------------------------------------------------------------
 
 # apt / libapt-pkg6.0t64, Ubuntu base layer package. Affects: grafana/promtail:3.6.11
@@ -228,9 +237,10 @@ CVE-2025-68973
 CVE-2026-41567
 CVE-2026-42306
 
-# github.com/klauspost/compress, vendored into promtail for log-stream compression. Fixed
-# upstream; not yet picked up by a newer promtail image build (none has been published).
-# Affects: grafana/promtail:3.6.11
+# github.com/klauspost/compress, vendored into promtail for log-stream compression and into
+# jaeger (Task #94/Phase 4) for the same purpose. Fixed upstream; not yet picked up by either
+# project's current latest image build.
+# Affects: grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
 CVE-2026-63209
 
 # github.com/prometheus/prometheus, vendored into promtail (shared scrape-config/service-
@@ -241,8 +251,9 @@ CVE-2026-42154
 
 # golang.org/x/crypto, vendored into promtail transitively (its Docker/Kubernetes
 # service-discovery client dependencies pull in x/crypto/ssh even though this stack only uses
-# docker_sd_configs). Fixed upstream; not yet picked up.
-# Affects: grafana/promtail:3.6.11
+# docker_sd_configs) and into jaeger (Task #94/Phase 4) via its own transitive dependencies.
+# Fixed upstream; not yet picked up by either.
+# Affects: grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
 CVE-2026-39828
 CVE-2026-39829
 CVE-2026-39830
@@ -254,13 +265,38 @@ CVE-2026-46595
 CVE-2026-46597
 CVE-2026-56854
 
-# golang.org/x/text, vendored into promtail. Fixed upstream; not yet picked up.
-# Affects: grafana/promtail:3.6.11
+# golang.org/x/text, vendored into promtail and into jaeger (Task #94/Phase 4). Fixed
+# upstream; not yet picked up by either.
+# Affects: grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
 CVE-2026-56851
 CVE-2026-56852
 
-# google.golang.org/grpc, vendored into promtail. Fixed upstream; not yet picked up.
-# Affects: grafana/promtail:3.6.11
+# google.golang.org/grpc, vendored into promtail and into jaeger (Task #94/Phase 4, which
+# also adds one CRITICAL CVE on this same package beyond promtail's three). Fixed upstream;
+# not yet picked up by either.
+# Affects: grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
+CVE-2026-33186
 CVE-2026-84304
 CVE-2026-84445
 GHSA-hrxh-6v49-42gf
+
+# -----------------------------------------------------------------------------------------
+# The three blocks below are jaegertracing/all-in-one:1.76.0-only (Task #94/Phase 4), found
+# at its own current real latest release -- same "fixed upstream, not yet in a republished
+# image" situation as the rest of this file.
+# -----------------------------------------------------------------------------------------
+
+# github.com/apache/thrift, vendored by jaeger for its legacy Thrift-protocol collector
+# support (the Compose service here only ever receives OTLP, never Thrift, but the binary
+# still links the library). Fixed upstream; not yet picked up.
+# Affects: jaegertracing/all-in-one:1.76.0
+CVE-2026-41602
+CVE-2026-43871
+
+# go.opentelemetry.io/otel and go.opentelemetry.io/otel/sdk, vendored by jaeger for its own
+# internal telemetry/instrumentation (separate from the application-facing OTLP receiver
+# this Task relies on). Fixed upstream; not yet picked up.
+# Affects: jaegertracing/all-in-one:1.76.0
+CVE-2026-29181
+CVE-2026-24051
+CVE-2026-39883

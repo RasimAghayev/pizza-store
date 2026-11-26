@@ -63,6 +63,11 @@ Grafana's Loki datasource and the `audit-log.json` dashboard are provisioned her
 Loki/Promtail services themselves and the audit-logging baseline are documented in
 `infrastructure/logging/README.md` (Task #93).
 
+## Tracing
+
+The OpenTelemetry Collector and Jaeger services, and the synthetic-span validation proving
+the pipeline, are documented in `infrastructure/tracing/README.md` (Task #94).
+
 ## Alerting
 
 See `infrastructure/monitoring/prometheus/alert-rules.yml` and
@@ -72,5 +77,5 @@ See `infrastructure/monitoring/prometheus/alert-rules.yml` and
 > against a real, clean `make up` run: all 9 Compose services healthy (or, for the two
 > shell-less exporters, confirmed `up` via Prometheus's own scrape result), all 5 Prometheus
 > scrape targets `up`, and real metric values (not just connectivity) confirmed for every
-> target through a live Grafana-proxied query. Logging/audit baseline added by Task #93.
-> Alerting/tracing land in later Phase 4 Tasks (#94-#95).
+> target through a live Grafana-proxied query. Logging/audit baseline added by Task #93;
+> tracing skeleton added by Task #94. Alerting lands in the next Phase 4 Task (#95).
