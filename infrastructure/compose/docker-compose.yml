@@ -340,7 +340,7 @@ services:
   # no application exists yet to emit real traces, and a persistent trace store is a
   # decision for Phase 6/7 once real retention requirements exist.
   jaeger:
-    image: jaegertracing/all-in-one:1.65.0
+    image: jaegertracing/all-in-one:1.76.0
     restart: unless-stopped
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
@@ -361,7 +361,7 @@ services:
   # healthcheck is possible here either. Jaeger receiving the spans this collector forwards
   # (proven by the synthetic-span validation for this Task) is the real signal.
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.116.1
+    image: otel/opentelemetry-collector-contrib:0.166.0
     restart: unless-stopped
     volumes:
       - ../tracing/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
