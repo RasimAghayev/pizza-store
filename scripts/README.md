@@ -14,5 +14,17 @@ Repository-wide helper scripts (seed, reset, health-check, release automation).
   backup → restore → verify test this was proven against, and
   `.github/workflows/backup-restore-test.yml` for the repeatable CI version of that test.
 
-> Status: Phase 0 folder structure plus the Phase 4 backup/restore scripts above; the rest
-> (seed, reset, health-check, release automation) is implementation not yet started.
+## Synthetic dataset generator (Task #111, Phase 5)
+
+- `dataset/generate.py` — generates a fully synthetic, 24-month, fixed-seed business dataset
+  (eighteen JSON Lines entity files) for the pizza store domain. No Django dependency, runs
+  standalone ahead of Phase 10's real schema. See
+  [`dataset/README.md`](dataset/README.md) for usage, the full entity list, and the
+  reproducibility/verification guarantees.
+- `dataset/verify.py` — referential-integrity, financial-reconciliation,
+  status-history-monotonicity, and volume-threshold checks against any generated output.
+
+> Status: Phase 0 folder structure, the Phase 4 backup/restore scripts, and the Phase 5
+> synthetic dataset generator above; the rest (seed-into-database, reset, health-check,
+> release automation) is implementation not yet started — seeding a live database is
+> Phase 10 scope, once real Django/Postgres models exist.
