@@ -133,3 +133,22 @@ jobs:
 
       - name: Playwright e2e
         run: npm run e2e
+
+  dataset-generation:
+    name: Dataset generation (smoke tier)
+    runs-on: ubuntu-latest
+    # Activated by Phase 5 (Task #112) -- the routine CI check that scripts/dataset/generate.py
+    # and verify.py keep working. The integration/load tiers are deliberately never run here
+    # (master prompt §10: "must not overload CI"); they're only proven locally as PR evidence.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Install dataset generator dependencies
+        run: pip install -r scripts/dataset/requirements.txt
+
+      - name: Generate and verify the smoke tier
+        run: python scripts/dataset/generate.py --tier smoke --output-dir /tmp/dataset-smoke --verify

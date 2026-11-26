@@ -1,4 +1,5 @@
-.PHONY: up down build restart logs status health test test-backend test-frontend lint migrate seed reset clean
+.PHONY: up down build restart logs status health test test-backend test-frontend lint migrate seed reset clean \
+	dataset-smoke dataset-integration dataset-load
 
 # NOTE: targets below assume infrastructure/compose/docker-compose.yml, added in Phase 2
 # (Local Docker Infrastructure). Running them before that file exists will fail.
@@ -52,3 +53,15 @@ reset:
 
 clean:
 	$(COMPOSE) down -v --remove-orphans
+
+# Synthetic dataset generator (Task #111/#112) is a standalone Python + Faker script with
+# no Django dependency and no Compose service of its own -- it runs directly on the host,
+# not through $(COMPOSE) exec, by design (see scripts/dataset/README.md).
+dataset-smoke:
+	python scripts/dataset/generate.py --tier smoke --verify
+
+dataset-integration:
+	python scripts/dataset/generate.py --tier integration --verify
+
+dataset-load:
+	python scripts/dataset/generate.py --tier load --verify

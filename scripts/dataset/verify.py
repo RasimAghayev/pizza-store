@@ -40,7 +40,7 @@ FK_CHECKS: list[tuple[str, str, str, str]] = [
     ("audit_events.jsonl", "actor_staff_id", "staff.jsonl", "staff_id"),
 ]
 
-FULL_SCALE_MINIMUMS = {
+INTEGRATION_MINIMUMS = {
     "branches.jsonl": 10,
     "products.jsonl": 100,
     "staff.jsonl": 100,
@@ -48,7 +48,7 @@ FULL_SCALE_MINIMUMS = {
     "customers.jsonl": 20_000,
     "orders.jsonl": 100_000,
 }
-FULL_SCALE_MIN_PIZZA_VARIANTS = 30
+INTEGRATION_MIN_PIZZA_VARIANTS = 30
 
 
 def _load(data_dir: Path, filename: str) -> list[dict[str, Any]]:
@@ -160,32 +160,32 @@ def check_status_history_monotonic(data_dir: Path) -> list[str]:
     return errors
 
 
-def check_volume_thresholds(data_dir: Path, scale: str) -> list[str]:
-    if scale != "full":
+def check_volume_thresholds(data_dir: Path, tier: str) -> list[str]:
+    if tier not in ("integration", "load"):
         return []
     errors: list[str] = []
-    for filename, minimum in FULL_SCALE_MINIMUMS.items():
+    for filename, minimum in INTEGRATION_MINIMUMS.items():
         count = len(_load(data_dir, filename))
         if count < minimum:
             errors.append(f"{filename}: has {count} records, expected at least {minimum}")
 
     products = _load(data_dir, "products.jsonl")
     pizza_variants = sum(1 for p in products if p["category"] == "pizza_variant")
-    if pizza_variants < FULL_SCALE_MIN_PIZZA_VARIANTS:
+    if pizza_variants < INTEGRATION_MIN_PIZZA_VARIANTS:
         errors.append(
             f"products.jsonl: has {pizza_variants} pizza_variant records, expected at "
-            f"least {FULL_SCALE_MIN_PIZZA_VARIANTS}"
+            f"least {INTEGRATION_MIN_PIZZA_VARIANTS}"
         )
 
     return errors
 
 
-def run(data_dir: Path, scale: str) -> int:
+def run(data_dir: Path, tier: str) -> int:
     checks = [
         ("referential integrity", check_referential_integrity(data_dir)),
         ("financial reconciliation", check_financial_reconciliation(data_dir)),
         ("status-history monotonicity", check_status_history_monotonic(data_dir)),
-        ("volume thresholds", check_volume_thresholds(data_dir, scale)),
+        ("volume thresholds", check_volume_thresholds(data_dir, tier)),
     ]
 
     any_failed = False
@@ -204,13 +204,13 @@ def run(data_dir: Path, scale: str) -> int:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, default=Path("data/synthetic"))
-    parser.add_argument("--scale", choices=["smoke", "full"], default="full")
+    parser.add_argument("--tier", choices=["smoke", "integration", "load"], default="integration")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    return run(args.data_dir, args.scale)
+    return run(args.data_dir, args.tier)
 
 
 if __name__ == "__main__":
