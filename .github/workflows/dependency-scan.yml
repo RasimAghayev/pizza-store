@@ -1,0 +1,30 @@
+name: Dependency Scan
+
+on:
+  pull_request:
+    branches:
+      - test
+
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    name: pip-audit (Python dependency vulnerabilities)
+    runs-on: ubuntu-latest
+    steps:
+      # job-level `if` can't call hashFiles(); the guard lives on the step instead.
+      # Inert until Phase 6 (Epic #10) adds backend/requirements*.txt or pyproject.toml.
+      - name: Placeholder (active once a Python dependency manifest exists)
+        if: ${{ hashFiles('**/requirements*.txt') != '' || hashFiles('**/pyproject.toml') != '' }}
+        run: echo "Python dependency manifest detected — wire pip-audit here (Phase 6)."
+
+  npm-audit:
+    name: npm audit (npm dependency vulnerabilities)
+    runs-on: ubuntu-latest
+    steps:
+      # job-level `if` can't call hashFiles(); the guard lives on the step instead.
+      # Inert until Phase 7 (Epic #11) adds frontend/package.json.
+      - name: Placeholder (active once package.json exists)
+        if: ${{ hashFiles('**/package.json') != '' }}
+        run: echo "package.json detected — wire npm audit --omit=dev here (Phase 7)."
