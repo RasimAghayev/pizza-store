@@ -1,5 +1,5 @@
 .PHONY: up down build restart logs status health test test-backend test-frontend lint migrate seed reset clean \
-	dataset-smoke dataset-integration dataset-load
+	dataset-smoke dataset-integration dataset-load generate-jwt-keypair
 
 # NOTE: targets below assume infrastructure/compose/docker-compose.yml, added in Phase 2
 # (Local Docker Infrastructure). Running them before that file exists will fail.
@@ -65,3 +65,8 @@ dataset-integration:
 
 dataset-load:
 	python scripts/dataset/generate.py --tier load --verify
+
+# RS256 JWT signing keypair (ADR 0006, Issue #129) -- run once per environment; refuses to
+# overwrite an existing key by default, since that would invalidate every live refresh token.
+generate-jwt-keypair:
+	python scripts/generate-jwt-keypair.py

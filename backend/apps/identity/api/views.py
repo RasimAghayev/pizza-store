@@ -1,0 +1,194 @@
+from django.middleware.csrf import get_token
+from rest_framework import exceptions
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.identity.api.serializers import LoginSerializer, RefreshSerializer
+from apps.identity.api.throttling import (
+    LoginAccountRateThrottle,
+    LoginRateThrottle,
+    RefreshRateThrottle,
+)
+from apps.identity.services.session_service import InvalidCredentialsError, SessionService
+from apps.identity.services.token_service import (
+    ACCESS_TOKEN_LIFETIME,
+    REFRESH_TOKEN_LIFETIME,
+    InvalidRefreshTokenError,
+    StolenRefreshTokenError,
+)
+from shared.api.csrf import enforce_csrf
+
+ACCESS_COOKIE_NAME = "access_token"
+REFRESH_COOKIE_NAME = "refresh_token"
+
+_COOKIE_KWARGS = {"httponly": True, "secure": True, "samesite": "Strict"}
+
+
+def _client_type(request) -> str:
+    value = request.headers.get("X-Client-Type")
+    if value not in ("browser", "native"):
+        raise exceptions.ValidationError(
+            {"X-Client-Type": "Required header; must be 'browser' or 'native'."}
+        )
+    return value
+
+
+def _client_ip(request) -> str | None:
+    return request.META.get("REMOTE_ADDR")
+
+
+def _refresh_cookie_path(version: str) -> str:
+    return f"/api/{version}/auth/refresh"
+
+
+def _set_auth_cookies(
+    response: Response, *, access_token: str, refresh_token: str, version: str
+) -> None:
+    response.set_cookie(
+        ACCESS_COOKIE_NAME,
+        access_token,
+        max_age=int(ACCESS_TOKEN_LIFETIME.total_seconds()),
+        path="/",
+        **_COOKIE_KWARGS,
+    )
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        refresh_token,
+        max_age=int(REFRESH_TOKEN_LIFETIME.total_seconds()),
+        path=_refresh_cookie_path(version),
+        **_COOKIE_KWARGS,
+    )
+
+
+def _clear_auth_cookies(response: Response, *, version: str) -> None:
+    response.delete_cookie(ACCESS_COOKIE_NAME, path="/")
+    response.delete_cookie(REFRESH_COOKIE_NAME, path=_refresh_cookie_path(version))
+
+
+def _read_refresh_token(request, *, client_type: str) -> str:
+    """Browser clients present the refresh token via the httpOnly cookie (CSRF-checked,
+    since this is a cookie-authenticated state-changing request -- ADR 0006); non-browser
+    clients present it in the request body."""
+    if client_type == "browser":
+        enforce_csrf(request)
+        raw_token = request.COOKIES.get(REFRESH_COOKIE_NAME)
+        if not raw_token:
+            raise exceptions.AuthenticationFailed("Missing refresh token cookie.")
+        return raw_token
+
+    serializer = RefreshSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    raw_token = serializer.validated_data.get("refresh_token")
+    if not raw_token:
+        # Field name, not a credential -- Bandit's B105 heuristic flags any dict key
+        # containing "token".
+        raise exceptions.ValidationError({"refresh_token": "This field is required."})  # nosec B105
+    return raw_token
+
+
+class _ReturnsAuthenticationFailedAs401:
+    """DRF's default exception handler downgrades AuthenticationFailed to 403 when a view
+    has no authenticator to supply a WWW-Authenticate header (rest_framework/views.py's
+    exception_handler). These views intentionally have none -- login/refresh ARE the
+    pre-auth entry points -- so override get_authenticate_header to keep the conventional
+    401 for invalid credentials/invalid refresh tokens."""
+
+    def get_authenticate_header(self, request):
+        return "Bearer"
+
+
+class LoginView(_ReturnsAuthenticationFailedAs401, APIView):
+    """calls SessionService.login() -- see apps/identity/services/session_service.py"""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle, LoginAccountRateThrottle]
+
+    def post(self, request, version):
+        client_type = _client_type(request)
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            pair = SessionService().login(
+                email=serializer.validated_data["email"],
+                password=serializer.validated_data["password"],
+                device_label=request.headers.get("User-Agent", "")[:255],
+                ip_address=_client_ip(request),
+            )
+        except InvalidCredentialsError as exc:
+            raise exceptions.AuthenticationFailed(str(exc)) from exc
+
+        # Seeds the CSRF cookie needed for the subsequent cookie-authenticated
+        # refresh/logout calls in browser mode -- no prior session exists yet to forge by
+        # the time this request is made, so this endpoint does not itself require
+        # X-CSRFToken (see docs/api/conventions.md for this explicitly scoped deviation).
+        get_token(request)
+
+        if client_type == "browser":
+            response = Response({"message": "Login successful."})
+            _set_auth_cookies(
+                response,
+                access_token=pair.access_token,
+                refresh_token=pair.refresh_token,
+                version=version,
+            )
+        else:
+            response = Response(
+                {"access_token": pair.access_token, "refresh_token": pair.refresh_token}
+            )
+        return response
+
+
+class RefreshView(_ReturnsAuthenticationFailedAs401, APIView):
+    """calls SessionService.refresh() -- see apps/identity/services/session_service.py"""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+    throttle_classes = [RefreshRateThrottle]
+
+    def post(self, request, version):
+        client_type = _client_type(request)
+        raw_token = _read_refresh_token(request, client_type=client_type)
+
+        try:
+            pair = SessionService().refresh(
+                raw_refresh_token=raw_token,
+                device_label=request.headers.get("User-Agent", "")[:255],
+                ip_address=_client_ip(request),
+            )
+        except (InvalidRefreshTokenError, StolenRefreshTokenError) as exc:
+            raise exceptions.AuthenticationFailed(str(exc)) from exc
+
+        if client_type == "browser":
+            response = Response({"message": "Token refreshed."})
+            _set_auth_cookies(
+                response,
+                access_token=pair.access_token,
+                refresh_token=pair.refresh_token,
+                version=version,
+            )
+        else:
+            response = Response(
+                {"access_token": pair.access_token, "refresh_token": pair.refresh_token}
+            )
+        return response
+
+
+class LogoutView(APIView):
+    """calls SessionService.logout() -- see apps/identity/services/session_service.py"""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+
+    def post(self, request, version):
+        client_type = _client_type(request)
+        raw_token = _read_refresh_token(request, client_type=client_type)
+
+        SessionService().logout(raw_refresh_token=raw_token)
+
+        response = Response({"message": "Logged out."})
+        if client_type == "browser":
+            _clear_auth_cookies(response, version=version)
+        return response

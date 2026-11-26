@@ -45,9 +45,12 @@ jobs:
   backend-quality:
     name: Backend quality (lint/format/type-check/unit tests)
     runs-on: ubuntu-latest
-    # Activated by Phase 5 (Task #108) ahead of Phase 6's real modules -- a lightweight
-    # job-level postgres service is enough for the pytest-django run here, not the full
-    # Compose stack (that's what integration-validation.yml's compose-validate job is for).
+    # Activated by Phase 5 (Task #108) ahead of Phase 6's real modules -- lightweight
+    # job-level postgres/redis services are enough for the pytest-django run here, not the
+    # full Compose stack (that's what integration-validation.yml's compose-validate job is
+    # for). redis added by Issue #129: DRF's ScopedRateThrottle (apps/identity/api) requires
+    # a reachable cache backend on every request to the endpoints it guards, not just the
+    # dedicated rate-limit test.
     services:
       postgres:
         image: postgres:16-alpine
@@ -62,12 +65,23 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       POSTGRES_DB: pizza_store
       POSTGRES_USER: pizza_store
       POSTGRES_PASSWORD: pizza_store
       POSTGRES_HOST: localhost
       POSTGRES_PORT: "5432"
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
     defaults:
       run:
         working-directory: backend

@@ -12,4 +12,7 @@ urlpatterns = [
     # Every module's api/urls.py will be mounted the same way, under
     # api/<version>/<module>/... -- see docs/api/conventions.md.
     path("api/<str:version>/ping/", PingView.as_view(), name="ping"),
+    # calls POST /api/v1/auth/{login,refresh,logout} -- see
+    # backend/apps/identity/api/views.py (Issue #129)
+    path("api/<str:version>/auth/", include("apps.identity.api.urls")),
 ]
