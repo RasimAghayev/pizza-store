@@ -5,9 +5,11 @@ dev/test/prod profiles; backend, frontend, PostgreSQL, MongoDB, Redis, RabbitMQ,
 `docker-compose.yml` here defines three networks (`edge-net` for Nginx and, from Phase 6/7,
 the backend/frontend; `data-net` for PostgreSQL/MongoDB/Redis/RabbitMQ and, from Phase 6, the
 backend — Nginx never joins `data-net`; `monitoring-net`, added in Phase 4, for
-Prometheus/Grafana/exporters), the named volumes, and the Docker secrets every service Task
-reads credentials from. See `infrastructure/monitoring/README.md` for why Phase 4's three
-exporters don't all use the same secret-delivery mechanism.
+Prometheus/Grafana/exporters/Loki/Promtail), the named volumes, and the Docker secrets every
+service Task reads credentials from. See `infrastructure/monitoring/README.md` for why
+Phase 4's three exporters don't all use the same secret-delivery mechanism, and
+`infrastructure/logging/README.md` for the Loki/Promtail log pipeline and the
+Postgres/MongoDB audit-logging baseline (Task #93).
 
 Before running `make up`, copy each file in `secrets/` from its `.example` to the real name and
 set a real local value:

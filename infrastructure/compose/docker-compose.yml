@@ -16,6 +16,7 @@ volumes:
   rabbitmq-data:
   prometheus-data:
   grafana-data:
+  loki-data:
 
 secrets:
   postgres_password:
@@ -41,6 +42,9 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    # Baseline audit logging (Task #93): connection/disconnection events plus every DDL
+    # statement, shipped to Loki by promtail like every other container's stdout/stderr.
+    command: ["postgres", "-c", "log_connections=on", "-c", "log_disconnections=on", "-c", "log_statement=ddl"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -65,6 +69,13 @@ services:
   mongodb:
     image: mongo:7
     restart: unless-stopped
+    # Baseline audit logging (Task #93): --auth turns on real authentication enforcement
+    # (previously only MONGO_INITDB_ROOT_* existed, without --auth mongod did not actually
+    # require credentials) and logComponentVerbosity raises accessControl log verbosity so
+    # auth attempts are visible. Confirmed by real test that this list-form command (it
+    # starts with "-", so docker-entrypoint.sh prepends "mongod" itself) does not conflict
+    # with first-run MONGO_INITDB_ROOT_* initialization.
+    command: ["--auth", "--setParameter", "logComponentVerbosity={\"accessControl\":{\"verbosity\":1}}"]
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongo_root_password
@@ -280,5 +291,45 @@ services:
       - monitoring-net
     ports:
       - "${REDIS_EXPORTER_PORT}:9121"
+    mem_limit: 128m
+    cpus: "0.25"
+
+  # --- Phase 4 logging & audit baseline (Task #93) --------------------------------
+
+  # grafana/loki switched to a distroless, single-binary image: no shell, ls, wget, or curl
+  # at all (verified empirically -- even `docker run --entrypoint ls` fails with "executable
+  # file not found"), so no CMD-SHELL healthcheck is possible here, same situation as
+  # mongodb-exporter/redis-exporter below. Loki's own startup log line ("Loki started") and,
+  # functionally, promtail successfully pushing to it are the real signal.
+  loki:
+    image: grafana/loki:3.7.10
+    restart: unless-stopped
+    volumes:
+      - ../logging/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - monitoring-net
+    ports:
+      - "${LOKI_PORT}:3100"
+    mem_limit: 256m
+    cpus: "0.5"
+
+  # Promtail's image tag deliberately trails Loki's: Grafana has stopped publishing new
+  # grafana/promtail image builds past 3.6.11 (the project is being wound down in favor of
+  # Grafana Alloy), confirmed by checking Docker Hub directly rather than assuming -- 3.6.11
+  # is the real current latest, not an arbitrary older pin.
+  promtail:
+    image: grafana/promtail:3.6.11
+    restart: unless-stopped
+    volumes:
+      - ../logging/promtail-config.yml:/etc/promtail/config.yml:ro
+      # Read-only: discovery and log-reading only, never container/daemon control.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - monitoring-net
+    depends_on:
+      loki:
+        condition: service_started
     mem_limit: 128m
     cpus: "0.25"
