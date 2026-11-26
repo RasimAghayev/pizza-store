@@ -8,7 +8,9 @@ groups:
           severity: critical
         annotations:
           summary: "Scrape target {{ $labels.job }} is down"
-          description: "Prometheus has failed to scrape {{ $labels.job }} ({{ $labels.instance }}) for over 1 minute."
+          description: >-
+            Prometheus has failed to scrape {{ $labels.job }} ({{ $labels.instance }})
+            for over 1 minute.
 
   - name: baseline-exporter-health
     rules:
@@ -24,7 +26,9 @@ groups:
           severity: critical
         annotations:
           summary: "postgres-exporter cannot reach PostgreSQL"
-          description: "pg_up has been 0 for over 1 minute: the exporter is reachable but its connection to the postgres container is failing."
+          description: >-
+            pg_up has been 0 for over 1 minute: the exporter is reachable but its
+            connection to the postgres container is failing.
 
       - alert: MongoDBConnectionUnhealthy
         expr: mongodb_up == 0
@@ -33,7 +37,9 @@ groups:
           severity: critical
         annotations:
           summary: "mongodb-exporter cannot reach MongoDB"
-          description: "mongodb_up has been 0 for over 1 minute: the exporter is reachable but its connection to the mongodb container is failing."
+          description: >-
+            mongodb_up has been 0 for over 1 minute: the exporter is reachable but its
+            connection to the mongodb container is failing.
 
       - alert: RedisConnectionUnhealthy
         expr: redis_up == 0
@@ -42,7 +48,9 @@ groups:
           severity: critical
         annotations:
           summary: "redis-exporter cannot reach Redis"
-          description: "redis_up has been 0 for over 1 minute: the exporter is reachable but its connection to the redis container is failing."
+          description: >-
+            redis_up has been 0 for over 1 minute: the exporter is reachable but its
+            connection to the redis container is failing.
 
   - name: baseline-resource-thresholds
     rules:
@@ -53,7 +61,9 @@ groups:
           severity: warning
         annotations:
           summary: "PostgreSQL connection count is approaching max_connections"
-          description: "Active connections have exceeded 80% of pg_settings_max_connections ({{ $value | humanizePercentage }}) for over 5 minutes."
+          description: >-
+            Active connections have exceeded 80% of pg_settings_max_connections
+            ({{ $value | humanizePercentage }}) for over 5 minutes.
 
       # redis.conf sets no --maxmemory in this baseline (confirmed: redis_memory_max_bytes
       # reports 0), so there is no meaningful ratio to alert on. The Compose service's own
@@ -65,7 +75,9 @@ groups:
           severity: warning
         annotations:
           summary: "Redis memory usage is approaching the container's mem_limit"
-          description: "redis_memory_used_bytes has exceeded 200MiB (80% of the redis service's 256m Compose mem_limit) for over 5 minutes: {{ $value | humanize1024 }}B."
+          description: >-
+            redis_memory_used_bytes has exceeded 200MiB (80% of the redis service's 256m
+            Compose mem_limit) for over 5 minutes: {{ $value | humanize1024 }}B.
 
       - alert: RabbitMQQueueDepthHigh
         expr: rabbitmq_queue_messages > 1000
@@ -74,13 +86,20 @@ groups:
           severity: warning
         annotations:
           summary: "RabbitMQ total queue depth is high"
-          description: "rabbitmq_queue_messages (ready + unacknowledged, summed across all queues) has exceeded 1000 for over 5 minutes: {{ $value }}."
+          description: >-
+            rabbitmq_queue_messages (ready + unacknowledged, summed across all queues)
+            has exceeded 1000 for over 5 minutes: {{ $value }}.
 
       - alert: MongoDBConnectionsNearMax
-        expr: mongodb_ss_connections{conn_type="current"} / (mongodb_ss_connections{conn_type="current"} + mongodb_ss_connections{conn_type="available"}) > 0.8
+        expr: >-
+          mongodb_ss_connections{conn_type="current"} /
+          (mongodb_ss_connections{conn_type="current"} + mongodb_ss_connections{conn_type="available"})
+          > 0.8
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "MongoDB connection count is approaching its configured limit"
-          description: "Current connections have exceeded 80% of current+available connection capacity ({{ $value | humanizePercentage }}) for over 5 minutes."
+          description: >-
+            Current connections have exceeded 80% of current+available connection
+            capacity ({{ $value | humanizePercentage }}) for over 5 minutes.
