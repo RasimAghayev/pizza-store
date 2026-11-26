@@ -7,3 +7,4 @@ cryptography==50.0.2
 PyJWT==2.15.1
 django-cors-headers==4.9.0
 django-redis==7.0.0
+pika==1.5.0

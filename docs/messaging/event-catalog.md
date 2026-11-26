@@ -8,6 +8,15 @@ code for it is written (Phase 6+).
 All routing keys follow `<aggregate>.<event-verb>.v<schema_version>`. All exchanges are durable
 topic exchanges named `<module>.events`.
 
+**Infrastructure status (2026-11-26, Issue #130):** the generic Transactional Outbox
+publisher and idempotent-consumer base classes now exist in `backend/shared/events/` and are
+proven against a real RabbitMQ broker. None of the eight exchanges or the nineteen events
+below have been created yet -- every row in the table is still a naming reservation, not a
+live exchange/queue. The first real module to publish one of these events (Phase 10+) is what
+actually creates its exchange and appends a true catalog entry; the test fixture event used
+to prove the Outbox/idempotent-consumer plumbing is deliberately not listed here, since it is
+not a real domain event.
+
 | Event | Owning module | Exchange | Routing key |
 |---|---|---|---|
 | CustomerRegistered | customers | `customers.events` | `customer.registered.v1` |
