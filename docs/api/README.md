@@ -1,5 +1,5 @@
 # API
 
-OpenAPI/Swagger sənədləşməsi və API konvensiyaları.
+OpenAPI/Swagger documentation and API conventions.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

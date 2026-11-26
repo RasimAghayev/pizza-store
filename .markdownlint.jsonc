@@ -1,0 +1,10 @@
+{
+  "default": true,
+  // Prose in this repo (ADRs, Epic/Task bodies, READMEs) intentionally wraps long
+  // explanatory sentences rather than hard-wrapping at a fixed column.
+  "MD013": false,
+  // Every table in this repo consistently pads header/data cells (`| a | b |`) but leaves
+  // the delimiter row unpadded (`|---|---|`) — standard, readable GFM style. MD060 treats
+  // that mix as inconsistent; disabled rather than reformatting ~10 existing tables.
+  "MD060": false
+}

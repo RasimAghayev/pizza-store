@@ -1,5 +1,5 @@
 # Infrastructure Docs
 
-Docker/Compose/Swarm/Kubernetes qurulma, işə salma, yoxlama, backup/restore prosedurları.
+Docker/Compose/Swarm/Kubernetes setup, startup, verification, and backup/restore procedures.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

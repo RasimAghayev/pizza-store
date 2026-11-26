@@ -27,6 +27,8 @@ yarn-error.log*
 !.env.example
 *.pem
 *.key
+infrastructure/compose/secrets/*.txt
+!infrastructure/compose/secrets/*.txt.example
 
 # Docker
 *.log

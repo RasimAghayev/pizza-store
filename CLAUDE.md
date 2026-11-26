@@ -7,8 +7,23 @@ or a future one) follows the same conventions without re-reading the whole promp
 
 ## Language
 
-- Documentation (`docs/`, READMEs, ADRs, Issues): Azerbaijani.
-- Code, identifiers, commit messages, branch names, PR titles: English.
+- Everything is English: code, identifiers, commit messages, branch names, PR titles,
+  documentation (`docs/`, READMEs, ADRs), and GitHub Issues/PRs. No other language appears
+  anywhere in files tracked by this repository or in GitHub Issues/PRs created for it.
+- Commits made before this rule took effect (2026-11-25) may still contain Azerbaijani text in
+  `git log`/blame — that history was intentionally left as-is (forward-fix only, no history
+  rewrite); do not re-flag it, only keep new/edited content English.
+
+## Cross-file dependency comments
+
+When a file calls another file/service/API endpoint, or is itself called by one, add a short
+comment at the call site (or near the top of the file) naming the other side of that link —
+e.g. `# calls POST /orders — see orders/api.py::create_order` or
+`# called by OrderService.create() in orders/services.py`. This is a narrow exception to the
+general "default to no comments" rule: it exists purely to make cross-file/cross-service
+coupling traceable by grep, not to explain what the code does. Applies starting Phase 6/7
+(Backend/Frontend Foundation) once real application code exists; nothing to apply yet during
+Phase 0-5 (infrastructure/docs only).
 
 ## No AI signatures, anywhere
 
@@ -48,6 +63,17 @@ Redis, RabbitMQ, Nginx) healthy, observability, backup/restore tested, security 
 - Never mark a failing check or unimplemented feature as passing/working.
 - Never put mock data in production paths; money uses Decimal/minor units, never float.
 - Every GitHub Issue must be independently executable without asking a follow-up question.
+
+## Capturing chat directives as Issues
+
+When the user gives a substantive instruction, decision, or new requirement in conversation
+(a policy change, a new convention, a scope change) rather than a trivial acknowledgement or
+"continue" — log it: translate/polish it into a well-formed English GitHub Issue following
+the standard structure (§13 of the master prompt / the repo's Issue templates), create it on
+GitHub (closed immediately if already acted on in-session, open/`Ready` if deferred), then
+keep working. This gives every real decision a durable, English, searchable record instead of
+leaving it only in chat scrollback. Trivial replies, status checks, or "go ahead" messages
+don't need an Issue.
 
 ## Real-world / GitHub actions
 

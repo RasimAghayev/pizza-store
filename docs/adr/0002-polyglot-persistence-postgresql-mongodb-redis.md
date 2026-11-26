@@ -4,53 +4,52 @@
 
 Accepted
 
-## Kontekst
+## Context
 
-Platform üç növ məlumatla işləyir: (1) ciddi consistency tələb edən transaction məlumatları
-(sifariş, ödəniş, balans), (2) strukturu dəyişkən, sorğu yükü az olan sənəd məlumatları
-(audit, event history, tracking history), (3) qısa ömürlü, tez-tez oxunan "hot" məlumatlar
-(cache, session, son GPS koordinatları).
+The platform works with three kinds of data: (1) transactional data that requires strict
+consistency (orders, payments, balances), (2) document data with a variable structure and low
+query load (audit, event history, tracking history), (3) short-lived, frequently-read "hot"
+data (cache, session, latest GPS coordinates).
 
-Tək bir database (yalnız PostgreSQL) ilə hər üçünü eyni effektivliklə həll etmək mümkündür,
-amma audit/tracking tarixçəsi kimi yüksək yazma tezliyinə malik, sxemsiz məlumatlar
-PostgreSQL-i lazımsız yükləyəcək və hot-path oxumalar üçün əlavə latency yaradacaq.
+A single database (PostgreSQL alone) could handle all three, but high-write-frequency,
+schema-less data such as audit/tracking history would load PostgreSQL unnecessarily and add
+latency to hot-path reads.
 
-## Qərar
+## Decision
 
-Hər database yalnız öz məsuliyyət sahəsini daşıyır:
+Each database carries only its own area of responsibility:
 
-| Texnologiya | Rol | Nümunə məlumat |
+| Technology | Role | Example data |
 |---|---|---|
-| PostgreSQL | Source of truth, ACID | users, orders, order_items, payments, refunds, wallet/loyalty/inventory transaction-lar |
-| MongoDB | Çevik sənəd məlumatı | audit records, order event history, delivery tracking history, analytics documents |
-| Redis | Hot data (source of truth deyil) | cache, session, rate limiting, OTP, courier son koordinat, order status cache |
+| PostgreSQL | Source of truth, ACID | users, orders, order_items, payments, refunds, wallet/loyalty/inventory transactions |
+| MongoDB | Flexible document data | audit records, order event history, delivery tracking history, analytics documents |
+| Redis | Hot data (not source of truth) | cache, session, rate limiting, OTP, courier's latest coordinate, order status cache |
 
-MongoDB heç vaxt PostgreSQL-in əvəzi kimi istifadə olunmur — pul və balans əməliyyatları
-yalnız PostgreSQL-dədir. Redis-dəki məlumat itsə belə sistem funksional qalmalıdır (yalnız
-performans təsirlənir, data itkisi olmur) — bu, Redis-in həmişə "cache/hot cache", heç vaxt
-"yeganə mənbə" olmamasının təsdiqidir.
+MongoDB is never used as a replacement for PostgreSQL — money and balance operations live only
+in PostgreSQL. If data in Redis is lost, the system must stay functional (only performance is
+affected, no data loss) — this confirms Redis is always a "cache/hot cache", never the "single
+source of truth".
 
-## Səbəb
+## Reason
 
-- ACID tələb edən maliyyə və sifariş məlumatları üçün PostgreSQL-in transaction təminatı
-  əvəzolunmazdır.
-- Audit/tracking tarixçəsi həcmcə böyük, sxemi tez-tez dəyişə bilən, nadir hallarda mürəkkəb
-  JOIN tələb edən məlumatdır — sənəd modeli (MongoDB) daha münasibdir və PostgreSQL-i
-  lazımsız yazma yükündən qoruyur.
-- Kuryerin son koordinatı, aktiv sifariş statusu kimi "yalnız ən son dəyər vacibdir"
-  məlumatlar üçün Redis-in in-memory sürəti lazımdır; bu məlumatın tarixçəsi isə MongoDB-də
-  saxlanılır.
+- PostgreSQL's transaction guarantees are irreplaceable for financial and order data that
+  requires ACID.
+- Audit/tracking history is large in volume, has a schema that can change frequently, and
+  rarely needs complex JOINs — a document model (MongoDB) is a better fit and keeps
+  unnecessary write load off PostgreSQL.
+- "Only the latest value matters" data, such as a courier's latest coordinate or active order
+  status, needs Redis's in-memory speed; the history of that data is kept in MongoDB.
 
-## Nəticələr
+## Consequences
 
-- Cache invalidation və TTL siyasəti sənədləşdirilməlidir (bax `docs/database/`).
-- Hansı məlumatın harada saxlandığı Database Responsibility Matrix ilə izlənilir.
-- Servislər arası consistency event-driven mexanizmlə (RabbitMQ + Outbox, bax ADR 0001)
-  qorunur — birbaşa cross-database transaction yoxdur.
+- A cache invalidation and TTL policy must be documented (see `docs/database/`).
+- Where each piece of data is stored is tracked via the Database Responsibility Matrix.
+- Cross-service consistency is maintained via the event-driven mechanism (RabbitMQ + Outbox,
+  see ADR 0001) — there is no direct cross-database transaction.
 
-## Alternativlər
+## Alternatives
 
-- **Yalnız PostgreSQL (hamısı üçün):** rədd edildi — audit/tracking üçün lazımsız schema
-  rigidiyi və yazma yükü.
-- **Yalnız MongoDB (hamısı üçün):** rədd edildi — maliyyə əməliyyatları üçün ACID
-  təminatının olmaması qəbuledilməzdir.
+- **PostgreSQL only (for everything):** rejected — unnecessary schema rigidity and write load
+  for audit/tracking.
+- **MongoDB only (for everything):** rejected — the lack of ACID guarantees is unacceptable
+  for financial operations.

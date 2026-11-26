@@ -1,5 +1,5 @@
 # Logging
 
-Centralized logging (Loki), log format və retention siyasəti.
+Centralized logging (Loki), log format and retention policy.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

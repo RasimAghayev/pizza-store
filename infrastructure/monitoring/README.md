@@ -1,5 +1,5 @@
 # Monitoring
 
-Prometheus, Grafana dashboard-ları, əsas biznes və sistem metrikləri.
+Prometheus, Grafana dashboards, key business and system metrics.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

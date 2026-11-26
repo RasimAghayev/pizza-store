@@ -1,10 +1,10 @@
 # Support
 
-Bu layihə üçün dəstək aşağıdakı kanallar vasitəsilə əldə edilir:
+Support for this project is available through the following channels:
 
-- **Bug/xəta:** GitHub Issues → "Bug Report" şablonu.
-- **Yeni funksionallıq təklifi:** GitHub Issues → "Feature Request" şablonu.
-- **Təhlükəsizlik zəifliyi:** bax [SECURITY.md](SECURITY.md) — ictimai Issue açmayın.
-- **Ümumi sual:** GitHub Discussions aktiv olduqda ora, olmadıqda Issue açın.
+- **Bug reports:** GitHub Issues → "Bug Report" template.
+- **Feature requests:** GitHub Issues → "Feature Request" template.
+- **Security vulnerabilities:** see [SECURITY.md](SECURITY.md) — do not open a public Issue.
+- **General questions:** GitHub Discussions if enabled, otherwise open an Issue.
 
-Issue açarkən mövcud Issue-ları axtarın ki, dublikat yaranmasın.
+Search existing Issues before opening a new one to avoid duplicates.

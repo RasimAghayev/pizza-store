@@ -1,51 +1,53 @@
+# Pull Request
+
 ## Issue reference
 
 Refs: #
 
 ## Problem
 
-<!-- Nə həll edilir? -->
+<!-- What is being solved? -->
 
 ## Solution
 
-<!-- Necə həll edilib? -->
+<!-- How was it solved? -->
 
 ## Architectural impact
 
-<!-- Hər hansı bounded context, modul sərhədi və ya arxitektura qərarına təsir? -->
+<!-- Any impact on a bounded context, module boundary, or architecture decision? -->
 
 ## Database changes
 
-<!-- Migration var? PostgreSQL/MongoDB schema dəyişikliyi? -->
+<!-- Is there a migration? Any PostgreSQL/MongoDB schema change? -->
 
 ## API changes
 
-<!-- Yeni/dəyişdirilmiş endpoint, breaking change? -->
+<!-- New/changed endpoint, breaking change? -->
 
 ## Security considerations
 
-<!-- Auth, input validation, secret, PCI DSS təsiri? -->
+<!-- Auth, input validation, secrets, PCI DSS impact? -->
 
 ## Test evidence
 
-<!-- Hansı testlər yazıldı/icra edildi, nəticələr -->
+<!-- Which tests were written/run, and the results -->
 
 ## Migration impact
 
-<!-- Rollback planı -->
+<!-- Rollback plan -->
 
 ## Rollback strategy
 
 ## Documentation updates
 
-<!-- docs/ daxilində hansı sənəd yeniləndi -->
+<!-- Which document under docs/ was updated -->
 
 ## CI status
 
-<!-- Bütün required checks green-dir? -->
+<!-- Are all required checks green? -->
 
-- [ ] Unit testlər green
+- [ ] Unit tests green
 - [ ] Lint/type check green
 - [ ] Security scan green
 - [ ] Docker build green
-- [ ] Documentation yenilənib
+- [ ] Documentation updated

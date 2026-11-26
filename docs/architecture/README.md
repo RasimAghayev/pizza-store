@@ -1,5 +1,11 @@
 # Architecture
 
-System Overview, C4 diaqramlar (Context/Container/Component), bounded context xəritəsi.
+System Overview, C4 diagrams (Context/Container/Component), bounded context map.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+- [Domain Risk Register and Technical Debt Assessment](risk-register.md) — named technical
+  and business risks plus likely technical debt sources, cross-referenced to the Phase that
+  addresses each.
+
+> Status: Phase 1 — risk register complete, ADR 0004 (backend module / frontend feature
+> layout) complete; C4 diagrams and bounded context map not yet started (see Issue #30, now
+> `agent:ready`).

@@ -1,5 +1,5 @@
 # Infrastructure Security
 
-Secret management, container/image scanning konfiqurasiyası, network isolation qaydaları.
+Secret management, container/image scanning configuration, network isolation rules.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

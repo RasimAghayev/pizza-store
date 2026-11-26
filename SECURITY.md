@@ -1,23 +1,23 @@
 # Security Policy
 
-## Dəstəklənən versiyalar
+## Supported versions
 
-Layihə hazırda Phase 0-dadır (repository foundation); hələ release olunmuş versiya yoxdur.
-İlk stabil versiya elan olunana qədər `main` branch dəstəklənən tək xətdir.
+The project is currently in Phase 0 (repository foundation); no released version exists yet.
+Until the first stable version is announced, the `main` branch is the only supported line.
 
-## Zəiflik bildirişi
+## Reporting a vulnerability
 
-Təhlükəsizlik zəifliyi aşkar etsəniz, **ictimai Issue açmayın**.
+If you discover a security vulnerability, **do not open a public Issue**.
 
-- GitHub Private Vulnerability Reporting aktiv olduqda ("Security" tabından "Report a
-  vulnerability"), ondan istifadə edin.
-- Alternativ olaraq: rasimaqayev@gmail.com ünvanına yazın.
+- Use GitHub Private Vulnerability Reporting ("Report a vulnerability" under the "Security"
+  tab) once it's active.
+- Alternatively, email <rasimaqayev@gmail.com>.
 
-Bildirişdə təsvir, təkrarlama addımları və təsir dairəsi olsun. Mümkün qədər tez (məqsəd:
-7 iş günü ərzində ilkin cavab) geri dönüş ediləcək.
+Include a description, reproduction steps, and the scope of impact in your report. We aim to
+respond as quickly as possible (target: initial response within 7 business days).
 
-## Əhatə dairəsi
+## Scope
 
-- Autentifikasiya/avtorizasiya, data sızması, injection, SSRF, secret ifşası: kritik.
-- Dependency zəiflikləri Dependabot/Renovate vasitəsilə izlənilir.
-- Secret-lər heç vaxt repository-yə commit edilməməlidir (push protection aktivdir).
+- Authentication/authorization issues, data leaks, injection, SSRF, secret exposure: critical.
+- Dependency vulnerabilities are tracked via Dependabot/Renovate.
+- Secrets must never be committed to the repository (push protection is active).

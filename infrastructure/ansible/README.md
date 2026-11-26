@@ -1,5 +1,5 @@
 # Ansible
 
-VPS provisioning və konfiqurasiya avtomatlaşdırması (lazım olduqda).
+VPS provisioning and configuration automation (as needed).
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 0 — folder structure created, implementation not yet started.

@@ -1,5 +1,6 @@
 # Development
 
-Local setup, Docker development mühiti, contributing təlimatları.
+Local setup, Docker development environment, contributing guidelines.
 
-> Status: Phase 0 — qovluq strukturu yaradılıb, implementasiya hələ başlamayıb.
+> Status: Phase 3 (CI/CD & Quality) in progress. See [`ci-cd.md`](ci-cd.md) for the CI/CD
+> workflow reference. Local setup / Docker development environment docs are still pending.

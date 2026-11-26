@@ -1,0 +1,54 @@
+# Third-party actions below are pinned to a full commit SHA, not a tag, per master-prompt
+# §9. The trailing `# vX.Y.Z` comment names the human-readable release the SHA corresponds
+# to; Renovate's `github-actions` manager tracks the pinned digest and opens an update PR
+# (targeting `preview`, per renovate.json) when a newer release is published.
+name: CodeQL
+
+on:
+  pull_request:
+    branches:
+      - test
+  schedule:
+    # CodeQL's recommended baseline cadence: catches newly-disclosed query coverage against
+    # otherwise-unchanged code, independent of PR activity.
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # `actions` scans .github/workflows/*.yml, a real target that exists today — this
+          # is also GitHub's own recommended default-setup language for this repository
+          # (confirmed via GET /repos/.../code-scanning/default-setup), so it runs
+          # unconditionally. CodeQL hard-errors ("could not process any code written in
+          # <language>") rather than succeeding on an empty database, so python/
+          # javascript-typescript — no backend/frontend source exists yet — are guarded and
+          # self-activate once Phase 6/7 add real source matching their pattern below.
+          - language: actions
+            pattern: ".github/workflows/**"
+          - language: python
+            pattern: "backend/**/*.py"
+          - language: javascript-typescript
+            pattern: "frontend/**/*.ts"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Initialize CodeQL
+        if: ${{ hashFiles(matrix.pattern) != '' }}
+        uses: github/codeql-action/init@915412ff23e8b7659517e607487dbeae018f2934  # v4.39.5
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Perform CodeQL analysis
+        if: ${{ hashFiles(matrix.pattern) != '' }}
+        uses: github/codeql-action/analyze@915412ff23e8b7659517e607487dbeae018f2934  # v4.39.5
+        with:
+          category: "/language:${{ matrix.language }}"

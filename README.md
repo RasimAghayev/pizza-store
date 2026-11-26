@@ -3,38 +3,39 @@
 Production-ready event-driven pizza ordering and restaurant management platform built with
 Python, Django, Angular, PostgreSQL, MongoDB, Redis, RabbitMQ, Docker and automated CI/CD.
 
-> **Status:** Phase 0 — Repository Foundation. Repository strukturu və idarəetmə
-> infrastrukturu qurulur; hələ biznes kodu yoxdur. Tam yol xəritəsi aşağıdadır.
+> **Status:** Phase 0 — Repository Foundation. The repository structure and management
+> infrastructure are being set up; there is no business code yet. The full roadmap is below.
 
-## Prinsip
+## Principle
 
 **Infrastructure First → Architecture → Business → Testing → Production.**
-İnfrastruktur Acceptance Gate-dən (bax `docs/architecture/`) keçmədən biznes kodu yazılmır.
+No business code is written until the Infrastructure Acceptance Gate (see `docs/architecture/`)
+is passed.
 
-## Texnologiya Stack
+## Technology Stack
 
-| Sahə | Seçim |
+| Area | Choice |
 |---|---|
 | Backend | Python, Django, Django REST Framework |
-| Backend test | Pytest, pytest-django, Factory Boy, Faker |
+| Backend testing | Pytest, pytest-django, Factory Boy, Faker |
 | Frontend | Angular, TypeScript, RxJS, Angular Material |
-| Frontend test | Angular unit/component testləri, Playwright E2E |
+| Frontend testing | Angular unit/component tests, Playwright E2E |
 | DB | PostgreSQL (source of truth), MongoDB (document/audit data), Redis (hot data) |
 | Messaging | RabbitMQ (event-driven architecture, Transactional Outbox) |
 | Containers | Docker, Docker Compose, Docker Swarm, Kubernetes + Helm |
 | Proxy | Nginx |
 | CI/CD | GitHub Actions, Renovate, Dependabot |
 | Observability | Prometheus, Grafana, Loki, OpenTelemetry/Jaeger |
-| Kod keyfiyyəti | Ruff, Mypy, Bandit, pip-audit, Semgrep, Trivy, CodeQL, ESLint, Prettier |
+| Code quality | Ruff, Mypy, Bandit, pip-audit, Semgrep, Trivy, CodeQL, ESLint, Prettier |
 
-**Arxitektura:** Modular Monolith + Event-Driven Architecture, bounded contexts, Clean
+**Architecture:** Modular Monolith + Event-Driven Architecture, bounded contexts, Clean
 Architecture, DDD, SOLID, Repository Pattern, Service Layer, Dependency Injection.
 
-## Repository strukturu
+## Repository structure
 
 ```text
 pizza-store/
-├── backend/          # Django modular monolith (domain-lərə görə ayrılmış app-lar)
+├── backend/          # Django modular monolith (apps separated by domain)
 ├── frontend/         # Angular monorepo: customer-web/, management-web/, courier-web/
 ├── infrastructure/   # Docker, Compose, Nginx, Postgres, Mongo, Redis, RabbitMQ, K8s, Swarm, Terraform
 ├── docs/             # Architecture, ADR, database, messaging, deployment, security, business, API docs
@@ -42,25 +43,25 @@ pizza-store/
 └── .github/          # Issue/PR templates, workflows, Dependabot/Renovate config
 ```
 
-Hər qovluğun öz `README.md`-si mövcuddur.
+Every folder has its own `README.md`.
 
-## Branch strategiyası
+## Branch strategy
 
-| Branch | Məqsəd |
+| Branch | Purpose |
 |---|---|
-| `main` | Production-ready. Yalnız `test`-dən PR qəbul edir. |
-| `test` | İnteqrasiya və QA. Feature/infrastructure/bugfix/security/docs branch-ləri bura açılır. |
-| `preview` | Renovate/Dependabot dependency yeniləmələri. Heç vaxt birbaşa `main`-ə getmir. |
+| `main` | Production-ready. Only accepts PRs from `test`. |
+| `test` | Integration and QA. Feature/infrastructure/bugfix/security/docs branches open PRs here. |
+| `preview` | Renovate/Dependabot dependency updates. Never goes directly to `main`. |
 
-Axın: `feature/* → test → main`, `renovate/* → preview → test → main`.
+Flow: `feature/* → test → main`, `renovate/* → preview → test → main`.
 
 ## Local development
 
 ```bash
-docker compose up -d   # Phase 2-də aktivləşəcək — hələ compose faylı yoxdur
+docker compose up -d   # Will activate in Phase 2 — no compose file yet
 ```
 
-Bütün inkişaf Docker üzərində aparılır; host sistemdə ayrıca Python/Node/DB quraşdırılmır.
+All development runs on Docker; no separate Python/Node/DB installation on the host system.
 
 ## Phase roadmap
 
@@ -83,16 +84,16 @@ Bütün inkişaf Docker üzərində aparılır; host sistemdə ayrıca Python/No
 | 14 | Advanced Features |
 | 15 | Production Readiness |
 
-Biznes kodu yalnız Phase 9 (Infrastructure Acceptance Gate) tamamlandıqdan sonra başlayır.
+Business code only starts after Phase 9 (Infrastructure Acceptance Gate) is complete.
 
 ## Documentation
 
-Tam texniki sənədləşmə `docs/` qovluğundadır: architecture, ADR, database, messaging,
-deployment, security, business, API, testing, operations, runbooks.
+Complete technical documentation lives in the `docs/` folder: architecture, ADR, database,
+messaging, deployment, security, business, API, testing, operations, runbooks.
 
 ## Contributing
 
-Bax [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md).
 
 ## License
 
