@@ -27,8 +27,9 @@ library shared`:
 Each app's root component (`app.ts`/`app.html`) wraps its `#app-name` placeholder and
 `<router-outlet />` in `shared`'s `AppShell`, and both `provideAnimationsAsync()` (required by
 Angular Material) and the theme's global stylesheet are wired into each app's `app.config.ts`
-/ `angular.json`. No real routes, auth, or responsive behavior yet — those are later Phase 7
-Tasks' scope (see Issues #140-142).
+/ `angular.json`. `customer-web` has since gained real routes, auth, and responsive behavior
+(Issues #140-142, see the sections below); `management-web`/`courier-web` remain empty shells
+until Phase 10/12.
 
 ## `shared`'s theme and its `.mat-typography` class
 
@@ -215,11 +216,13 @@ job, which brings up and tears down its own copy of the stack (independent of
   design (single-purpose containers — see Architecture Requirements in Issue #140), so
   `$(COMPOSE) exec frontend npm test`/`npm run lint` have nothing to exec against. Run
   tests/lint directly against the local checkout — see "Running tests locally" above.
-- `Secure` cookies require HTTPS; the edge `nginx` added by Issue #140 does not terminate
-  TLS (out of that Task's scope). A real browser hitting `http://localhost` will receive but
-  not send back the `Secure`-flagged auth/CSRF cookies — see `docs/api/conventions.md`'s
-  "Known limitation: `Secure` cookies require HTTPS" section. `curl -i` still proves the
-  cookies are set correctly on a single request.
+- `Secure` cookies normally require HTTPS; the edge `nginx` added by Issue #140 does not
+  terminate TLS (out of that Task's scope). This is not a problem for local dev/CI, though:
+  browsers treat `http://localhost` specifically as a trustworthy origin regardless of
+  scheme, so the full login → refresh → logout flow works end-to-end in a real browser today
+  (`e2e/tests/auth-flow.spec.ts` proves it, including the `refresh_token`/CSRF round-trip) —
+  see `docs/api/conventions.md`'s "Known limitation" section. A real deployed environment on
+  any other hostname would still need TLS termination at the edge.
 - `management-web`/`courier-web` are empty shells with no real screens — Phase 10/12 scope
   respectively — and are not wired behind the edge `nginx` yet.
 - The register screen is permanently non-functional until a real registration endpoint
@@ -241,4 +244,9 @@ job, which brings up and tears down its own copy of the stack (independent of
 > `auth-flow` Playwright suite against the live stack. Issue #142 — mobile-first responsive
 > behavior in the shared `AppShell`, a WCAG 2.2 AA accessibility pass on `customer-web`'s real
 > screens, and an `axe-core` accessibility scan added to the Playwright suite. Issue #143
-> continues this Epic (close-out).
+> closed out this Epic: real end-to-end re-verification (not just re-reading prior Tasks'
+> own claims) found and fixed two real bugs along the way -- a stale local Compose project
+> name silently running the `backend` service against a foreign image (#152), and the
+> `refresh_token` cookie's `Path` excluding `/auth/logout`, which made every real-browser
+> logout fail with `403` despite the UI appearing to log the user out (#154) -- and added a
+> permanent regression test for the latter to `auth-flow.spec.ts`.
