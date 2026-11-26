@@ -20,7 +20,11 @@
 # Go stdlib CVEs disclosed against that toolchain; gosu's upstream maintainer has not
 # published a build against a patched Go release, so postgres/mongo can't rebuild on top of
 # one either. Tracked upstream: https://github.com/tianon/gosu.
-# Affects: postgres:16-alpine, mongo:7
+#
+# The same CVE IDs also show up against the Go stdlib embedded in the statically-linked
+# grafana and mongodb_exporter binaries (Task #92/Phase 4) -- same root cause (project
+# hasn't republished against a newer Go toolchain yet), different vendor.
+# Affects: postgres:16-alpine, mongo:7, grafana/grafana:13.3.2, percona/mongodb_exporter:0.54.0
 # -----------------------------------------------------------------------------------------
 CVE-2025-61726
 CVE-2025-61729
@@ -54,7 +58,11 @@ CVE-2026-97031
 # (bsondump, mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat,
 # mongotop). Same situation as gosu above: fixed upstream in x/net, not yet in a republished
 # mongo image build.
-# Affects: mongo:7
+#
+# Also present in grafana, prometheus, and mongodb_exporter's own vendored x/net (Task #92/
+# Phase 4) at their current latest release -- same situation, different vendor.
+# Affects: mongo:7, grafana/grafana:13.3.2, prom/prometheus:v3.16.0,
+#   percona/mongodb_exporter:0.54.0
 # -----------------------------------------------------------------------------------------
 CVE-2026-78661
 
@@ -168,3 +176,20 @@ CVE-2026-27135
 
 # tiff -- Affects: nginxinc/nginx-unprivileged:1.27-alpine
 CVE-2026-4775
+
+# -----------------------------------------------------------------------------------------
+# github.com/grafana/tempo, vendored into the grafana binary as its Tempo datasource
+# client. Fixed upstream in the tempo client module; grafana/grafana:13.3.2 (current latest
+# release as of this baseline) has not yet picked up that bump in its own go.mod.
+# Affects: grafana/grafana:13.3.2
+# -----------------------------------------------------------------------------------------
+CVE-2026-21728
+CVE-2026-28377
+
+# -----------------------------------------------------------------------------------------
+# github.com/go-jose/go-jose/v4, vendored into the mongodb_exporter binary. Fixed upstream
+# in go-jose; percona/mongodb_exporter:0.54.0 (current latest release as of this baseline)
+# has not yet picked up that bump in its own go.mod.
+# Affects: percona/mongodb_exporter:0.54.0
+# -----------------------------------------------------------------------------------------
+CVE-2026-116587

@@ -159,7 +159,7 @@ services:
   # --- Phase 4 observability stack (Task #92) -------------------------------------
 
   prometheus:
-    image: prom/prometheus:v3.1.0
+    image: prom/prometheus:v3.16.0
     restart: unless-stopped
     volumes:
       - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -177,7 +177,7 @@ services:
     cpus: "1.0"
 
   grafana:
-    image: grafana/grafana:11.4.0
+    image: grafana/grafana:13.3.2
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: admin
@@ -193,15 +193,22 @@ services:
     ports:
       - "${GRAFANA_PORT}:3000"
     healthcheck:
+      # Grafana 13's unified-storage/apiserver boot path takes longer than 11.x's did
+      # (~70s observed locally) -- retries bumped from 5 to 10 so the healthcheck window
+      # covers real startup time instead of reporting a transient false "unhealthy".
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
-    mem_limit: 256m
-    cpus: "0.5"
+      retries: 10
+    # Grafana 13's unified-storage/apiserver stack needs materially more headroom than
+    # 11.x did; 256m caused SQLITE_BUSY retries and context-canceled errors under the
+    # authz gRPC server during startup (observed locally), consistent with memory
+    # pressure rather than a real incompatibility.
+    mem_limit: 512m
+    cpus: "1.0"
 
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.16.0
+    image: prometheuscommunity/postgres-exporter:v0.21.1
     restart: unless-stopped
     # Unlike redis/rabbitmq above, this image's own ENTRYPOINT is the exporter binary
     # itself, not a wrapper script that execs "$@" — command: sh -c '...' alone would
@@ -239,7 +246,7 @@ services:
   # user (never the Mongo root user) created by infrastructure/mongodb/init/01-create-exporter-user.sh.
   # No healthcheck: Prometheus's own `up{job="mongodb"}` scrape result is the real signal.
   mongodb-exporter:
-    image: percona/mongodb_exporter:0.44
+    image: percona/mongodb_exporter:0.54.0
     restart: unless-stopped
     command:
       - --mongodb.uri=mongodb://mongodb_exporter:${MONGODB_EXPORTER_PASSWORD}@mongodb:27017/admin?authSource=admin
@@ -261,7 +268,7 @@ services:
   # the same password as redis_password.txt in that JSON shape, and the two must be kept
   # in sync by hand (documented in docs/security/secret-management.md).
   redis-exporter:
-    image: oliver006/redis_exporter:v1.67.0
+    image: oliver006/redis_exporter:v1.99.0
     restart: unless-stopped
     command:
       - -redis.addr=redis://redis:6379
