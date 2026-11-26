@@ -6,7 +6,8 @@ under `projects/`, each generated with `ng generate application <name>` / `ng ge
 library shared`:
 
 - `projects/customer-web/` — the primary end-user-facing app. The first app wired to the
-  real backend auth API (Issue #140) and given a real login flow (Issue #141).
+  real backend auth API (Issue #140, `app.config.ts`) and, from Issue #141 onward, given a
+  real login flow.
 - `projects/management-web/` — the back-office app. Currently an empty shell (root component
   only); gets real screens from Phase 10 onward.
 - `projects/courier-web/` — the courier-facing app. Currently an empty shell; gets real
@@ -15,8 +16,8 @@ library shared`:
   Contains the design system baseline (Issue #139): a single Angular Material theme
   (`src/lib/theme/theme.scss`) and three components — `AppShell` (toolbar + static side nav +
   content region), `Loading` (indeterminate spinner with a message), `ErrorDisplay` (a dumb
-  presentational alert, meant to be wired to real error data by Issue #140). `AuthService` and
-  HTTP interceptors (Issue #140) are not added yet.
+  presentational alert). It also contains `AuthService` and the HTTP interceptor stack
+  (Issue #140) — see the section below.
 
 - `e2e/` — a **permanent** Playwright harness (kept past Phase 7). `e2e/playwright.config.ts`
   serves `customer-web` and asserts against its `#app-name` placeholder; later Tasks extend
@@ -66,22 +67,57 @@ build customer-web`, `ng serve customer-web`). `ng lint` and `ng test`'s bare fo
 exception: each runs every project's target in sequence, which is what `npm run lint`/`npm
 test` rely on.
 
+## `frontend` Compose service and the interceptor/AuthService stack
+
+`frontend/Dockerfile` is a two-stage build: a `node:26-alpine` stage runs `ng build shared`
+then `ng build customer-web`, and a `nginxinc/nginx-unprivileged:1.27-alpine` stage (same
+image/version as the edge `nginx`) serves the result as static files, with a
+client-side-routing fallback (`frontend/nginx.conf`). `infrastructure/compose/
+docker-compose.yml`'s `frontend` service builds this image; the edge `nginx` proxies `/` to
+it and `/api/` to `backend` (both now joined to `edge-net`) — see
+`infrastructure/nginx/conf.d/default.conf` and `docs/api/conventions.md`'s "`SameSite=Strict`
+vs. cross-origin CORS" section.
+
+Only `customer-web` is wired behind the edge so far (Issue #140); `management-web`/
+`courier-web` are not yet reachable through `nginx`.
+
+`projects/shared/src/lib/http/` and `projects/shared/src/lib/auth/` (consumed by
+`customer-web`'s `app.config.ts` only, for now):
+
+- `AuthService` (`auth/auth.service.ts`) wraps `POST /api/v1/auth/{login,refresh,logout}`
+  with `X-Client-Type: browser` and `withCredentials: true`, per
+  `docs/api/conventions.md`. Its `refreshOnce()` shares one in-flight refresh call across
+  concurrent 401s instead of firing one per failed request.
+- `csrfInterceptor` attaches `X-CSRFToken` (read from the `csrftoken` cookie) only on
+  `refresh`/`logout` requests, matching the backend's CSRF scoping — never on `login`.
+- `errorInterceptor` maps the backend's `{"error": {"code","message","details"}}` envelope
+  into a typed `ApiError` (`http/api-error.ts`), meant to be passed to `ErrorDisplay`.
+- `authRefreshInterceptor` retries a request exactly once after a 401 via
+  `AuthService.refreshOnce()`, excluding the auth endpoints themselves; a second failure
+  propagates without retrying again. Registered **before** `errorInterceptor` in
+  `withInterceptors([...])` so it still sees the raw `HttpErrorResponse` — see the comment in
+  `customer-web/src/app/app.config.ts`.
+
 ## Known gaps
 
-- No `frontend` Docker Compose service or Dockerfile exists yet — that is Issue #140's scope
-  (wiring the edge `nginx` to a real `frontend` service serving `customer-web`).
-  `make test-frontend`/`make lint` run through Compose (`$(COMPOSE) exec frontend ...`),
-  consistent with every other Makefile target, and so remain non-functional until that
-  service exists. Run tests/lint directly against the local checkout in the meantime — see
-  "Running tests locally" above.
+- `make test-frontend`/`make lint` still don't work against the `frontend` Compose service:
+  its runtime stage is a minimal static-file `nginx` image with no `npm`/Node.js in it by
+  design (single-purpose containers — see Architecture Requirements in Issue #140), so
+  `$(COMPOSE) exec frontend npm test`/`npm run lint` have nothing to exec against. Run
+  tests/lint directly against the local checkout — see "Running tests locally" above.
+- `Secure` cookies require HTTPS; the edge `nginx` added by Issue #140 does not terminate
+  TLS (out of that Task's scope). A real browser hitting `http://localhost` will receive but
+  not send back the `Secure`-flagged auth/CSRF cookies — see `docs/api/conventions.md`'s
+  "Known limitation: `Secure` cookies require HTTPS" section. `curl -i` still proves the
+  cookies are set correctly on a single request.
 - `management-web`/`courier-web` are empty shells with no real screens — Phase 10/12 scope
-  respectively.
-- No auth UI, HTTP interceptors, responsive layout, or accessibility pass yet — Issues
-  #140-142.
+  respectively — and are not wired behind the edge `nginx` yet.
+- No auth UI, responsive layout, or accessibility pass yet — Issues #141-142.
 
 > Status: Phase 7 (Epic #11). Issue #138 — the real Angular workspace (`customer-web`,
 > `management-web`, `courier-web`, `shared`) replaces the Phase 5 throwaway `smoke-app`
 > skeleton (Task #109); `e2e/` is kept, repointed at `customer-web`. Issue #139 — the shared
 > design system baseline (Material theme + `AppShell`/`Loading`/`ErrorDisplay`), consumed by
-> all three apps. Issues #140-143 continue
+> all three apps. Issue #140 — the edge `nginx`/`frontend` Compose service and the
+> `AuthService`/interceptor stack, wired into `customer-web` only. Issues #141-143 continue
 > this Epic.
