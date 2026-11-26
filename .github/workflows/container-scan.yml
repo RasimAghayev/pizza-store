@@ -63,6 +63,10 @@ jobs:
           format: sarif
           output: trivy-${{ steps.safe-name.outputs.name }}.sarif
           severity: CRITICAL,HIGH
+          # trivy-action unsets TRIVY_SEVERITY for `format: sarif` unless this is set, so the
+          # Security tab's "all severities" convenience would otherwise silently widen the
+          # exit-code gate below past CRITICAL/HIGH. See aquasecurity/trivy-action entrypoint.sh.
+          limit-severities-for-sarif: true
           exit-code: "1"
           trivyignores: .trivyignore
 
