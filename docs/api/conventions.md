@@ -135,14 +135,19 @@ in the previously-documented not-yet-exercisable state until their own equivalen
 Task is done. The `native`-mode path has no such limitation and is fully covered by
 `backend/apps/identity/tests/integration/test_auth.py`.
 
-### Known limitation: `Secure` cookies require HTTPS, and the edge has none yet
+### Known limitation: `Secure` cookies require HTTPS in production, not in local dev/CI
 
 The edge `nginx` added by Issue #140 does not terminate TLS — intentionally out of that
 Task's scope (Compose-network-internal only; see the Task's Architecture Requirements). The
-`access_token`/`refresh_token`/CSRF cookies all carry `Secure` (ADR 0006), so a real browser
-loading `customer-web` over plain `http://localhost` will *store* the `Set-Cookie` response
-but will not send it back on the next request — `Secure` has no effect over HTTPS-less
-`fetch()`/XHR either. `curl -i` still shows the real `Set-Cookie` header (including
-`httpOnly`/`Secure`/`SameSite=Strict`) on a single request, which is what Issue #140's
-Acceptance Criteria checks, but a full interactive login→refresh→logout flow in an actual
-browser needs TLS termination at the edge, which is a separate, not-yet-scheduled Task.
+`access_token`/`refresh_token`/CSRF cookies all carry `Secure` (ADR 0006), which normally
+means a browser only sends them back over HTTPS. This is **not** a live problem for local
+dev/CI, though: every major browser (Chromium included) treats `http://localhost`
+specifically as a "potentially trustworthy origin" regardless of scheme (the W3C Secure
+Contexts spec's own `localhost` carve-out), so `Secure` cookies are stored and sent back
+normally there. Confirmed with a real Chromium/Playwright run through the edge
+(`frontend/e2e/tests/auth-flow.spec.ts`): the full login → dashboard → logout flow works
+end-to-end, including the `refresh_token`/CSRF round-trip, with no TLS anywhere in the
+stack. This only holds for the literal hostname `localhost` — a real deployed environment
+reached over plain HTTP on any other hostname would still need TLS termination at the edge
+before these cookies would round-trip for real users, which remains a separate,
+not-yet-scheduled Task.
