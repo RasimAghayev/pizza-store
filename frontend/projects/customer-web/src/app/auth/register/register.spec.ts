@@ -22,9 +22,8 @@ describe('Register', () => {
   });
 
   it('shows the explanatory not-yet-available notice', () => {
-    const notice: HTMLElement | null = fixture.nativeElement.querySelector(
-      '.register-form__notice',
-    );
+    const notice: HTMLElement | null =
+      fixture.nativeElement.querySelector('.register-form__notice');
     expect(notice?.textContent).toContain('Registration is not yet available');
   });
 
@@ -36,9 +35,8 @@ describe('Register', () => {
     });
     fixture.detectChanges();
 
-    const submit: HTMLButtonElement | null = fixture.nativeElement.querySelector(
-      'button[type="submit"]',
-    );
+    const submit: HTMLButtonElement | null =
+      fixture.nativeElement.querySelector('button[type="submit"]');
     expect(submit?.disabled).toBe(true);
   });
 });

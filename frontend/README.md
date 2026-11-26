@@ -148,7 +148,7 @@ from apps.identity.services.registration_service import RegistrationService
 from apps.identity.models import User
 email = 'e2e-auth@example.com'
 if not User.objects.filter(email=email).exists():
-    RegistrationService().register(email=email, password='Str0ng!E2E-Passw0rd')
+    RegistrationService().register(email=email, password='correct-horse-battery-staple')
 "
 cd frontend && npm run e2e:auth
 ```

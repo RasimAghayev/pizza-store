@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 // RegistrationService -- see that service for why a shell-seeded user is used instead of a
 // real registration endpoint (none exists yet, Issue #141).
 const FIXTURE_EMAIL = 'e2e-auth@example.com';
-const FIXTURE_PASSWORD = 'Str0ng!E2E-Passw0rd';
+const FIXTURE_PASSWORD = 'correct-horse-battery-staple';
 
 test('a user can log in with valid credentials and reach the dashboard', async ({ page }) => {
   await page.goto('/login');
@@ -18,9 +18,7 @@ test('a user can log in with valid credentials and reach the dashboard', async (
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 });
 
-test('invalid credentials show the backend error message and do not navigate', async ({
-  page,
-}) => {
+test('invalid credentials show the backend error message and do not navigate', async ({ page }) => {
   await page.goto('/login');
 
   await page.getByLabel('Email').fill(FIXTURE_EMAIL);

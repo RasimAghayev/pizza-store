@@ -2,8 +2,8 @@
   <h1>Register</h1>
 
   <p class="register-form__notice" role="status">
-    Registration is not yet available. This screen is a preview of the upcoming sign-up form
-    only -- submitting it does nothing.
+    Registration is not yet available. This screen is a preview of the upcoming sign-up form only --
+    submitting it does nothing.
   </p>
 
   <mat-form-field appearance="outline">
@@ -18,15 +18,12 @@
 
   <mat-form-field appearance="outline">
     <mat-label>Confirm password</mat-label>
-    <input
-      matInput
-      type="password"
-      formControlName="confirmPassword"
-      autocomplete="new-password"
-    />
+    <input matInput type="password" formControlName="confirmPassword" autocomplete="new-password" />
   </mat-form-field>
 
   <button mat-raised-button type="submit" disabled>Registration not yet available</button>
 
-  <p class="register-form__login-link">Already have an account? <a routerLink="/login">Log in</a></p>
+  <p class="register-form__login-link">
+    Already have an account? <a routerLink="/login">Log in</a>
+  </p>
 </form>

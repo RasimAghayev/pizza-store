@@ -84,10 +84,13 @@ describe('AuthService', () => {
     service.login({ email: 'a@example.com', password: 'wrong' }).subscribe({
       error: (err: unknown) => (error = err),
     });
-    httpMock.expectOne(LOGIN_URL).flush({ error: { message: 'Invalid email or password.' } }, {
-      status: 401,
-      statusText: 'Unauthorized',
-    });
+    httpMock.expectOne(LOGIN_URL).flush(
+      { error: { message: 'Invalid email or password.' } },
+      {
+        status: 401,
+        statusText: 'Unauthorized',
+      },
+    );
 
     expect(error).toBeTruthy();
     expect(service.isAuthenticated()).toBe(false);
@@ -111,10 +114,13 @@ describe('AuthService', () => {
 
     let error: unknown;
     service.refresh().subscribe({ error: (err: unknown) => (error = err) });
-    httpMock.expectOne(REFRESH_URL).flush({ error: { message: 'Invalid or expired refresh token.' } }, {
-      status: 401,
-      statusText: 'Unauthorized',
-    });
+    httpMock.expectOne(REFRESH_URL).flush(
+      { error: { message: 'Invalid or expired refresh token.' } },
+      {
+        status: 401,
+        statusText: 'Unauthorized',
+      },
+    );
 
     expect(error).toBeTruthy();
     expect(service.isAuthenticated()).toBe(false);
