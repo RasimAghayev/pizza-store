@@ -297,7 +297,7 @@ services:
   # --- Phase 4 logging & audit baseline (Task #93) --------------------------------
 
   loki:
-    image: grafana/loki:3.3.2
+    image: grafana/loki:3.7.10
     restart: unless-stopped
     volumes:
       - ../logging/loki-config.yml:/etc/loki/local-config.yaml:ro
@@ -314,8 +314,12 @@ services:
     mem_limit: 256m
     cpus: "0.5"
 
+  # Promtail's image tag deliberately trails Loki's: Grafana has stopped publishing new
+  # grafana/promtail image builds past 3.6.11 (the project is being wound down in favor of
+  # Grafana Alloy), confirmed by checking Docker Hub directly rather than assuming -- 3.6.11
+  # is the real current latest, not an arbitrary older pin.
   promtail:
-    image: grafana/promtail:3.3.2
+    image: grafana/promtail:3.6.11
     restart: unless-stopped
     volumes:
       - ../logging/promtail-config.yml:/etc/promtail/config.yml:ro
