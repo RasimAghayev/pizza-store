@@ -34,8 +34,10 @@ pytest
 ## Known gaps
 
 - No `backend` Docker Compose service or Dockerfile exists yet — that is Phase 6/8 scope.
-  `make migrate`/`make seed` remain non-functional until then; `make test-backend` runs
-  directly against the local checkout instead of through Compose.
+  `make migrate`/`make seed`/`make test-backend`/`make lint` all run through Compose
+  (`$(COMPOSE) exec backend ...`), consistent with every other Makefile target, and so remain
+  non-functional until that service exists. Run tests/lint directly against the local
+  checkout in the meantime — see "Running tests locally" above.
 - No real business logic — Phase 10 (Core Business) onward.
 
 > Status: Phase 5 — throwaway test-infrastructure skeleton (Task #108), real
