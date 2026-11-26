@@ -22,7 +22,7 @@ secrets:
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:19-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -46,7 +46,7 @@ services:
     cpus: "1.0"
 
   mongodb:
-    image: mongo:7
+    image: mongo:9
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
@@ -68,7 +68,7 @@ services:
     cpus: "1.0"
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: unless-stopped
     command: >
       sh -c 'redis-server --requirepass "$$(cat /run/secrets/redis_password)" --appendonly yes'
@@ -89,7 +89,7 @@ services:
     cpus: "0.5"
 
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:4-management-alpine
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
