@@ -110,11 +110,13 @@ keeps answering Prometheus throughout (`up{job="redis-exporter"}` stays `1`), it
 `up{job=...}` distinction above, proven live rather than asserted. `redis` was then restarted,
 and the alert was confirmed resolved (gone from both APIs) on the next evaluation cycle.
 
-> Status: Phase 4 — metrics stack (Prometheus, Grafana, exporters) implemented and validated
-> against a real, clean `make up` run: all 9 Compose services healthy (or, for the two
-> shell-less exporters, confirmed `up` via Prometheus's own scrape result), all 5 Prometheus
-> scrape targets `up`, and real metric values (not just connectivity) confirmed for every
-> target through a live Grafana-proxied query. Logging/audit baseline added by Task #93;
-> tracing skeleton added by Task #94; alerting rules + Alertmanager added by Task #95, proven
-> with a real stop/restart alert fire-and-resolve cycle. Epic #8's remaining Tasks (#96-#98)
-> cover backup/restore, secret management documentation, and close-out.
+> Status: Phase 4 complete (Epic #8 closed, Task #98). Metrics stack (Prometheus, Grafana,
+> exporters) implemented and validated against a real, clean `make up` run: all 9 Compose
+> services healthy (or, for the two shell-less exporters, confirmed `up` via Prometheus's own
+> scrape result), all 5 Prometheus scrape targets `up`, and real metric values (not just
+> connectivity) confirmed for every target through a live Grafana-proxied query.
+> Logging/audit baseline added by Task #93; tracing skeleton added by Task #94; alerting
+> rules + Alertmanager added by Task #95, proven with a real stop/restart alert
+> fire-and-resolve cycle; backup/restore added by Task #96; secret management documented by
+> Task #97. All of it re-verified together, against the full 15-service stack at once, for
+> Phase 4 close-out — see `docs/operations/monitoring.md`.

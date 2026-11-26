@@ -82,10 +82,19 @@ Task's PR.
 
 ## Known limitations
 
-- Log retention/rotation beyond each service's own defaults is out of scope here (tracked in
-  Task #97, secret management document).
+- Log retention/rotation beyond each service's own defaults is out of scope here — a known
+  gap deferred to a future dedicated Task (see `docs/runbooks/incident-response.md`), not
+  something `docs/security/secret-management.md` (Task #97) covers despite an earlier,
+  inaccurate cross-reference to it here.
 - The `backup_encryption_key` passphrase's own rotation/distribution process is documented in
-  Task #97, not here.
+  `docs/security/secret-management.md` (Task #97), not here.
 - `mongodump`/`mongorestore` here operate on the whole instance (no `--db` filter), matching
   this project's single-tenant-per-environment model; a future multi-tenant backup strategy
   would need to revisit this.
+
+## Phase 4 close-out re-verification (2026-11-26, Task #98)
+
+Re-ran the exact cycle one more time against the final merged `test` state (not just the
+state at the time this Task's own PR #103 was opened), via `.github/workflows/backup-restore-test.yml`'s
+`workflow_dispatch` trigger on `test` (run `45783257863`): seed → backup → restore →
+verify → clean up all passed, unchanged from the original real test above.
