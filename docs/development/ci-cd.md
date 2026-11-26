@@ -142,3 +142,33 @@ that needs the latter, scoped only here, to upload SARIF results.
   pre-existing issues.
 - `bandit` job: guarded on `hashFiles('backend/**')`, same placeholder pattern as the other
   Phase 3 workflows. Inert until Phase 6 wires `bandit -r backend/`.
+
+## Dependency scanning and the Renovate `preview` flow
+
+**`dependency-scan.yml` triggers:** `pull_request` targeting `test` (every PR, regardless of
+head branch — same as `quality-gate.yml`). **Permissions:** `contents: read`.
+
+- `pip-audit` / `npm-audit`: guarded on `hashFiles('**/requirements*.txt') != '' ||
+  hashFiles('**/pyproject.toml') != ''` and `hashFiles('**/package.json') != ''`
+  respectively, same placeholder pattern as the other Phase 3 workflows. Inert until Phase 6
+  / Phase 7 add real Python/npm dependency manifests.
+
+### Real bug found: `preview` had never been synced since repository bootstrap
+
+`renovate.json` (Phase 0) restricts `baseBranches` to `["preview"]` so Renovate treats that
+branch as the source of truth for current dependency versions. Verifying this Task's
+Acceptance Criteria — a real, observed Renovate PR, not configuration review — surfaced that
+`preview` had never received a single commit since the initial repository-bootstrap commit:
+the Dependency Dashboard (Issue #1) reported "Detected Dependencies: None detected" because
+`preview`'s tree predated `infrastructure/compose/docker-compose.yml` and every Phase 3
+workflow's pinned-action references — there was nothing on that branch for Renovate's
+managers to scan. Fixed by fast-forwarding `preview` to `test`'s current head (a clean
+fast-forward; `preview` had made zero independent commits, so this is a pure sync, not a
+merge with conflicts) before triggering the on-demand Renovate run described below. Going
+forward, `preview` needs the same periodic catch-up from `test` whenever it has drifted far
+enough that Renovate's scan would miss real dependency surfaces.
+
+### Observed outcome
+
+*Recorded once the real `preview -> test -> main` run described in Issue #74 completes —
+see that Issue's closing comment for the authoritative account in the meantime.*
