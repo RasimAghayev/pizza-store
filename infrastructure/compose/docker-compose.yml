@@ -113,7 +113,7 @@ services:
     cpus: "1.0"
 
   nginx:
-    image: nginxinc/nginx-unprivileged:1.27-alpine
+    image: nginxinc/nginx-unprivileged:1.31-alpine
     restart: unless-stopped
     volumes:
       - ../nginx/conf.d:/etc/nginx/conf.d:ro
