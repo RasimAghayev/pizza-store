@@ -7,7 +7,8 @@ library shared`:
 
 - `projects/customer-web/` — the primary end-user-facing app. The first app wired to the
   real backend auth API (Issue #140, `app.config.ts`) and, from Issue #141 onward, given a
-  real login flow.
+  real login flow, a non-functional register skeleton, and route guarding (see "Auth UI and
+  routing" below).
 - `projects/management-web/` — the back-office app. Currently an empty shell (root component
   only); gets real screens from Phase 10 onward.
 - `projects/courier-web/` — the courier-facing app. Currently an empty shell; gets real
@@ -58,8 +59,12 @@ npx ng build management-web
 npx ng build courier-web
 npm test                  # Vitest unit tests, all four projects
 npx playwright install --with-deps chromium
-npm run e2e                # Playwright e2e against customer-web
+npm run e2e                # Playwright e2e against customer-web (ng serve, no backend needed)
 ```
+
+`npm run e2e:auth` is deliberately not in this baseline sequence — it needs the full Compose
+stack (backend + postgres + the edge) already running, not just `ng serve`. See "Auth-flow
+E2E tests" below for the extra setup it requires.
 
 `ng build`/`ng serve` without a project name fail with "Cannot determine project for command"
 once a workspace has more than one project — always pass the project name explicitly (`ng
@@ -98,6 +103,63 @@ Only `customer-web` is wired behind the edge so far (Issue #140); `management-we
   `withInterceptors([...])` so it still sees the raw `HttpErrorResponse` — see the comment in
   `customer-web/src/app/app.config.ts`.
 
+## Auth UI and routing (Issue #141)
+
+`customer-web`'s `app.routes.ts` defines four routes: `/login` and `/register` (public), a
+guarded `/dashboard` placeholder, and a catch-all that redirects unknown paths to `/login`
+(same fail-closed default as the guard itself). All three screen components are lazy-loaded
+via `loadComponent`.
+
+- `auth/login/` — a Reactive Forms (email + password) component wired to the real
+  `AuthService.login()`. On success it navigates to `/dashboard`; on failure it renders the
+  backend's real error message (e.g. "Invalid email or password.", or the throttle message
+  on a 429) through shared's `ErrorDisplay`. Errors arrive already mapped to `ApiError` by
+  `errorInterceptor` — see `app.config.ts`'s interceptor-order comment.
+- `auth/register/` — a **UI-only, intentionally non-functional** skeleton. The backend has
+  no registration endpoint (Issue #127 never added one), so this form's submit button is
+  permanently `disabled` and wired to nothing, real or fake — see the comment in
+  `register.ts`. Do not wire this up to a mock response; it must stay honestly broken until a
+  real registration endpoint exists.
+- `dashboard-placeholder/` — a placeholder landing page behind the guard, with a logout
+  button calling `AuthService.logout()` and redirecting to `/login` regardless of whether the
+  network call itself succeeds (the local auth state is already cleared either way — see
+  `auth.service.ts`'s `logout()`).
+- `auth.guard.ts` — a functional `CanActivateFn` reading `AuthService.isAuthenticated()`
+  (a signal, `true` only after a real login/refresh success). Fails closed: any
+  unauthenticated or ambiguous state redirects to `/login`, never falls open. **Known
+  limitation:** this signal is in-memory only — there is no "whoami" endpoint yet to restore
+  it across a page reload, so reloading `/dashboard` while genuinely still logged in
+  (httpOnly cookies still valid server-side) still bounces to `/login`. Deferred; not part of
+  this Task's scope.
+
+### Auth-flow E2E tests
+
+`e2e/tests/auth-flow.spec.ts` (run via `npm run e2e:auth`, config
+`e2e/playwright.auth.config.ts`) exercises the real login flow through the real backend over
+the same-origin edge from Issue #140 — unlike `playwright.config.ts`'s smoke test, it has no
+`webServer` entry, because it needs the full Compose stack (`nginx`/`frontend`/`backend`/
+`postgres`, at minimum) already running, not a bare `ng serve`. To run it locally:
+
+```text
+make up                      # from the repo root; wait for all services to report healthy
+docker compose -f infrastructure/compose/docker-compose.yml --env-file .env \
+  exec backend python manage.py shell -c "
+from apps.identity.services.registration_service import RegistrationService
+from apps.identity.models import User
+email = 'e2e-auth@example.com'
+if not User.objects.filter(email=email).exists():
+    RegistrationService().register(email=email, password='correct-horse-battery-staple')
+"
+cd frontend && npm run e2e:auth
+```
+
+The fixture email/password are seeded via `RegistrationService` directly (the same
+service-layer class the future real registration endpoint will use) rather than any mocked
+or fake HTTP call — there is no registration endpoint to call instead. CI runs this same
+sequence in `.github/workflows/integration-validation.yml`'s `backend-frontend-integration`
+job, which brings up and tears down its own copy of the stack (independent of
+`compose-validate`'s, which already tears its own down before this job could reuse it).
+
 ## Known gaps
 
 - `make test-frontend`/`make lint` still don't work against the `frontend` Compose service:
@@ -112,12 +174,16 @@ Only `customer-web` is wired behind the edge so far (Issue #140); `management-we
   cookies are set correctly on a single request.
 - `management-web`/`courier-web` are empty shells with no real screens — Phase 10/12 scope
   respectively — and are not wired behind the edge `nginx` yet.
-- No auth UI, responsive layout, or accessibility pass yet — Issues #141-142.
+- The register screen is permanently non-functional until a real registration endpoint
+  exists (see "Auth UI and routing" above). The auth guard's in-memory session signal does
+  not survive a page reload — same section, "Known limitation".
+- No responsive layout or accessibility pass yet — Issue #142.
 
 > Status: Phase 7 (Epic #11). Issue #138 — the real Angular workspace (`customer-web`,
 > `management-web`, `courier-web`, `shared`) replaces the Phase 5 throwaway `smoke-app`
 > skeleton (Task #109); `e2e/` is kept, repointed at `customer-web`. Issue #139 — the shared
 > design system baseline (Material theme + `AppShell`/`Loading`/`ErrorDisplay`), consumed by
 > all three apps. Issue #140 — the edge `nginx`/`frontend` Compose service and the
-> `AuthService`/interceptor stack, wired into `customer-web` only. Issues #141-143 continue
-> this Epic.
+> `AuthService`/interceptor stack, wired into `customer-web` only. Issue #141 — the auth UI
+> (login, non-functional register skeleton, `/dashboard` guard) in `customer-web`, plus the
+> `auth-flow` Playwright suite against the live stack. Issues #142-143 continue this Epic.
