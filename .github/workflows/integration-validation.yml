@@ -44,13 +44,15 @@ jobs:
       - name: Wait for all services to report healthy
         run: |
           # Phase 2 (Issue #55) observed every service reaching `healthy` within ~20-35s;
-          # 90s gives comfortable headroom before this step fails the job. 10 of the 15
+          # 90s gives comfortable headroom before this step fails the job. 12 of the 15
           # Compose services carry a healthcheck (postgres, mongodb, redis, rabbitmq, nginx,
-          # prometheus, alertmanager, grafana, postgres-exporter, jaeger) -- loki, promtail,
-          # mongodb-exporter, redis-exporter, and otel-collector are scratch/distroless images
-          # with no shell to probe with and are intentionally excluded from this count (same
-          # 10/5 split as docs/operations/monitoring.md).
-          expected=10
+          # prometheus, alertmanager, grafana, postgres-exporter, jaeger, backend, frontend --
+          # the latter two added by Phase 6/7) -- loki, promtail, mongodb-exporter,
+          # redis-exporter, and otel-collector are scratch/distroless images with no shell to
+          # probe with and are intentionally excluded from this count. `-ge` rather than `-eq`
+          # so this doesn't silently start timing out again the next time a service gains a
+          # healthcheck without this count being updated to match.
+          expected=12
           timeout=90
           interval=5
           elapsed=0
@@ -58,7 +60,7 @@ jobs:
             healthy=$(docker compose -f "$COMPOSE_FILE" --env-file .env ps --format json \
               | jq -s 'flatten | map(select(.Health == "healthy")) | length')
             echo "Healthy: ${healthy}/${expected} (elapsed ${elapsed}s)"
-            if [ "$healthy" -eq "$expected" ]; then
+            if [ "$healthy" -ge "$expected" ]; then
               exit 0
             fi
             if [ "$elapsed" -ge "$timeout" ]; then
@@ -171,8 +173,8 @@ jobs:
       - name: Wait for all services to report healthy
         run: |
           # Same expectations as the compose-validate job above -- see its comment for the
-          # 10/5 healthchecked/shell-less split.
-          expected=10
+          # 12/3 healthchecked/shell-less split.
+          expected=12
           timeout=90
           interval=5
           elapsed=0
@@ -180,7 +182,7 @@ jobs:
             healthy=$(docker compose -f "$COMPOSE_FILE" --env-file .env ps --format json \
               | jq -s 'flatten | map(select(.Health == "healthy")) | length')
             echo "Healthy: ${healthy}/${expected} (elapsed ${elapsed}s)"
-            if [ "$healthy" -eq "$expected" ]; then
+            if [ "$healthy" -ge "$expected" ]; then
               exit 0
             fi
             if [ "$elapsed" -ge "$timeout" ]; then
