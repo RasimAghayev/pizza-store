@@ -4,15 +4,23 @@ Django modular monolith. Apps separated by domain (identity, customers, restaura
 
 ## Layout
 
-- `apps/` — one subfolder per bounded-context module (see `apps/README.md`). Empty until
-  Issue #127 (identity module) lands.
+- `apps/` — one subfolder per bounded-context module (see `apps/README.md`); the rest stay
+  empty until Phase 10 (Core Business).
+  - `identity/` — the first real bounded-context module (Issue #127): a custom
+    `identity.User` (`AUTH_USER_MODEL`), RS256-signed JWT access/refresh tokens with refresh
+    rotation and stolen-token-reuse detection (ADR 0006). Endpoints: `POST
+    /api/v1/auth/login/`, `POST /api/v1/auth/refresh/`, `POST /api/v1/auth/logout/` — see
+    [docs/api/conventions.md](../docs/api/conventions.md) for the request/response shape,
+    error envelope, and throttle rates.
 - `shared/` — framework-level cross-cutting code only (see `shared/README.md`): the
-  Outbox/idempotent-consumer base classes (Issue #130) and the DRF conventions (error
-  envelope, API schema plumbing — Issue #128).
+  Outbox/idempotent-consumer base classes and `relay_outbox` management command
+  (`shared/events/`, `manage.py relay_outbox --model <app.Model> --exchange <name>` — Issue
+  #130) and the DRF conventions (error envelope, API schema plumbing — Issue #128).
 - `integrations/` — reserved for a module's explicit synchronous call into another module;
   genuinely empty until a real need exists (see `integrations/README.md`).
-- `config/` — Django project settings, URLs, WSGI entrypoint. `SECRET_KEY` and the Postgres
-  password are read from Compose secret files (`/run/secrets/*`) via `_read_secret()` in
+- `config/` — Django project settings, URLs, WSGI entrypoint. `SECRET_KEY`, the Postgres
+  password, the Redis password, the RabbitMQ password, and the JWT RS256 private key are all
+  read from Compose secret files (`/run/secrets/*`) via `_read_secret()` in
   `config/settings.py`, per [ADR 0006](../docs/adr/0006-security-architecture-baseline.md) —
   never hardcoded, never a plain env var once a real `backend` Compose service exists.
 - `health/` — a plain top-level app, deliberately **not** placed under `apps/` (it is not a
@@ -22,6 +30,9 @@ Django modular monolith. Apps separated by domain (identity, customers, restaura
   - `HealthPing` model + migration + Factory Boy factory — exists purely so the
     pytest-django chain and the migration upgrade/downgrade test (Task #110) have something
     real to exercise, since no business-domain models exist until Phase 10.
+  - `HealthOutboxEvent`/`HealthProcessedEvent` — throwaway concrete subclasses of
+    `shared/events/`'s abstract Outbox/idempotent-consumer base models, used only to exercise
+    that infrastructure end-to-end in tests (Issue #130); not a real domain event.
 
 > **Reconciliation note (Issue #126):** Epic #10's own "Files & Directories" field lists
 > top-level `backend/domain/`, `backend/infrastructure/`, `backend/events/` folders — that
@@ -62,11 +73,10 @@ pytest
   (Phase 7/Epic #11 scope) — run `docker compose -f infrastructure/compose/docker-compose.yml
   exec backend ruff check .` directly to check backend lint in isolation until then.
 - No real business logic — Phase 10 (Core Business) onward.
-- `identity/` (the first real module), DRF/OpenAPI conventions, the JWT auth baseline, and
-  the Outbox/idempotent-consumer baseline are Issues #127-#130 of this Epic — not yet
-  implemented as of Issue #126.
 - A production-grade WSGI/ASGI server (this Dockerfile's `CMD` still runs Django's
   development server) is Phase 8 (Deployment Infrastructure) scope.
 
-> Status: Phase 6 (Epic #10), Issue #126 — real `backend` Compose service, Dockerfile, and
-> ADR 0004 top-level layout in place. Issues #127-#131 continue this Epic.
+> Status: Phase 6 (Epic #10) is complete — Issues #126-#130 (Compose service/Dockerfile,
+> `identity` module, DRF/OpenAPI conventions, the JWT auth baseline, and the Outbox/
+> idempotent-consumer baseline) are all merged. Issue #131 is this Epic's close-out
+> re-verification task.

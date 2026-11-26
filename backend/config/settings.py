@@ -61,6 +61,25 @@ MIDDLEWARE = [
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
+# Required for drf-spectacular's Swagger UI (/api/docs/, Issue #128) to render its own
+# packaged template -- APP_DIRS discovers it without this app needing to ship its own
+# templates/ dir. context_processors is limited to what MIDDLEWARE/INSTALLED_APPS actually
+# support here: no session/auth/messages middleware is installed, so the auth/messages
+# processors are deliberately omitted rather than referencing machinery that doesn't exist.
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+            ],
+        },
+    },
+]
+
 # CORS (ADR 0006): an explicit origin allowlist, never combined with a wildcard; credentials
 # are required since browser clients authenticate via cookies, not an Authorization header.
 CORS_ALLOWED_ORIGINS = [
