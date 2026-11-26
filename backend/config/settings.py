@@ -29,6 +29,10 @@ INSTALLED_APPS = [
     "corsheaders",
     "apps.identity",
     "health",
+    # Registered as an app (zero concrete models of its own) purely so Django's
+    # management-command discovery finds shared/management/commands/relay_outbox.py
+    # (Issue #130) -- see that file.
+    "shared",
 ]
 
 # identity.User (Issue #127) replaces Django's default auth.User -- see
@@ -122,6 +126,16 @@ CACHES = {
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     }
 }
+
+# RabbitMQ (ADR 0005, Issue #130) -- same Compose-secret-file-first pattern as
+# postgres/redis above. Read by shared/events/publisher.py::connection_parameters; falls
+# back to the guest/guest default outside Compose (e.g. CI's job-level service container in
+# quality-gate.yml, which has no secrets: mount and relies on RabbitMQ's own loopback-only
+# guest-user allowance).
+RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST", "localhost")
+RABBITMQ_PORT = int(os.environ.get("RABBITMQ_PORT", "5672"))
+RABBITMQ_USER = os.environ.get("RABBITMQ_USER", "guest")
+RABBITMQ_PASSWORD = _read_secret("rabbitmq_password", os.environ.get("RABBITMQ_PASSWORD", "guest"))
 
 # RS256 JWT signing key (ADR 0006, Issue #129) -- read by
 # apps/identity/services/token_service.py, which falls back to an ephemeral, process-local

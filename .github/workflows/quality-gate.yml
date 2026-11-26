@@ -46,11 +46,14 @@ jobs:
     name: Backend quality (lint/format/type-check/unit tests)
     runs-on: ubuntu-latest
     # Activated by Phase 5 (Task #108) ahead of Phase 6's real modules -- lightweight
-    # job-level postgres/redis services are enough for the pytest-django run here, not the
-    # full Compose stack (that's what integration-validation.yml's compose-validate job is
-    # for). redis added by Issue #129: DRF's ScopedRateThrottle (apps/identity/api) requires
-    # a reachable cache backend on every request to the endpoints it guards, not just the
-    # dedicated rate-limit test.
+    # job-level postgres/redis/rabbitmq services are enough for the pytest-django run here,
+    # not the full Compose stack (that's what integration-validation.yml's compose-validate
+    # job is for). redis added by Issue #129: DRF's ScopedRateThrottle (apps/identity/api)
+    # requires a reachable cache backend on every request to the endpoints it guards, not
+    # just the dedicated rate-limit test. rabbitmq added by Issue #130: the real Outbox/
+    # idempotent-consumer integration test needs a real broker; no credentials are set on the
+    # service container, relying on RabbitMQ's own default guest/guest + loopback-only rule
+    # (this job's services are reachable via localhost on the runner).
     services:
       postgres:
         image: postgres:16-alpine
@@ -74,6 +77,15 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       POSTGRES_DB: pizza_store
       POSTGRES_USER: pizza_store
@@ -82,6 +94,10 @@ jobs:
       POSTGRES_PORT: "5432"
       REDIS_HOST: localhost
       REDIS_PORT: "6379"
+      RABBITMQ_HOST: localhost
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
     defaults:
       run:
         working-directory: backend
