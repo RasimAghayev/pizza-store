@@ -28,9 +28,16 @@ docker run -d --name "$RESTORE_CONTAINER" \
   "$RESTORE_IMAGE" >/dev/null
 
 echo "Waiting for disposable restore target to become ready..."
+# On a brand-new data directory, the official postgres image's entrypoint starts a
+# temporary server to run init scripts, stops it, then starts the real server -- pg_isready
+# can report success during that temporary server's brief window (a real CI failure caught
+# this: "psql: ... FATAL: the database system is shutting down" right after pg_isready said
+# ready). Waiting for "database system is ready to accept connections" to appear twice in
+# the container's logs is the documented-correct signal that the real server is up.
 ready=0
-for _ in $(seq 1 30); do
-  if docker exec "$RESTORE_CONTAINER" pg_isready -U postgres -d "$RESTORE_DB" >/dev/null 2>&1; then
+for _ in $(seq 1 60); do
+  occurrences=$(docker logs "$RESTORE_CONTAINER" 2>&1 | grep -c "database system is ready to accept connections" || true)
+  if [ "$occurrences" -ge 2 ]; then
     ready=1
     break
   fi

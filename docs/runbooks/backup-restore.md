@@ -55,14 +55,30 @@ Task's own PR.
 5. **Clean up.** Removed both disposable containers, dropped the seeded test
    table/collection from the live services, and brought the stack back down.
 
-**Real bug found and fixed during this test:** the first Postgres restore attempt failed with
-`ERROR: role "pizza_store" does not exist`. `pg_dump`'s default output includes `ALTER TABLE
-... OWNER TO pizza_store` (the live database's own role), which errors on any target that
-doesn't happen to have that exact role — exactly the kind of problem a real
-restore-into-a-different-instance test exists to catch, as opposed to a dry run against the
-same database. Fixed by adding `--no-owner --no-privileges` to the `pg_dump` invocation;
-re-ran the full cycle afterward and it passed. MongoDB's restore passed on the first attempt
-with no equivalent issue (`mongorestore` does not carry an owner-role concept).
+**Real bugs found and fixed during this test:**
+
+1. The first Postgres restore attempt failed with `ERROR: role "pizza_store" does not exist`.
+   `pg_dump`'s default output includes `ALTER TABLE ... OWNER TO pizza_store` (the live
+   database's own role), which errors on any target that doesn't happen to have that exact
+   role — exactly the kind of problem a real restore-into-a-different-instance test exists to
+   catch, as opposed to a dry run against the same database. Fixed by adding `--no-owner
+   --no-privileges` to the `pg_dump` invocation.
+2. The first CI run of `.github/workflows/backup-restore-test.yml` failed with `psql: error:
+   ... FATAL: the database system is shutting down`, immediately after `pg_isready` had
+   reported the disposable restore container ready. Root cause: on a brand-new data
+   directory, the official `postgres` image's entrypoint starts a temporary server to run
+   init scripts, stops it, then starts the real server — `pg_isready` can report success
+   during that temporary server's brief window, and locally the extra latency of `gpg`'s
+   first-run `apk add gnupg` happened to mask this race, while CI's faster, pre-installed
+   `gpg` did not. Fixed by waiting for "database system is ready to accept connections" to
+   appear twice in the container's logs (the documented-correct readiness signal for this
+   image) instead of relying on `pg_isready` alone.
+
+MongoDB's restore passed on the first attempt with no equivalent issue (`mongorestore` does
+not carry an owner-role concept, and the disposable MongoDB container runs no init scripts,
+so it has no comparable double-start phase). Re-ran the full cycle after each fix; both
+passed, confirmed again in `.github/workflows/backup-restore-test.yml`'s real CI run on this
+Task's PR.
 
 ## Known limitations
 
