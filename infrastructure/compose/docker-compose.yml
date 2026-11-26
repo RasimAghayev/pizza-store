@@ -194,11 +194,14 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    # Deliberately data-net only, not edge-net/nginx -- ADR 0006's CORS-allowlist design
-    # assumes a browser calls this origin directly (see docs/api/conventions.md), which
-    # would be pointless under an Nginx-unified origin.
+    # Joins edge-net too (Issue #140) so the edge nginx's "location /api/" proxy_pass can
+    # reach this service -- the data-net-only restriction this comment used to describe
+    # predates the Nginx-unified origin that Issue #140 actually builds; the host-published
+    # port below is kept only for local debugging (e.g. Issue #131-style curl checks
+    # against the backend directly), not for browser traffic, which goes through nginx.
     networks:
       - data-net
+      - edge-net
     ports:
       - "${BACKEND_PORT}:8000"
     healthcheck:
@@ -209,6 +212,21 @@ services:
     mem_limit: 512m
     cpus: "1.0"
 
+  # --- Phase 7 frontend foundation (Issue #140) ---------------------------------------
+
+  frontend:
+    build: ../../frontend
+    restart: unless-stopped
+    networks:
+      - edge-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    cpus: "0.5"
+
   nginx:
     image: nginxinc/nginx-unprivileged:1.27-alpine
     restart: unless-stopped
@@ -218,6 +236,11 @@ services:
       - edge-net
     ports:
       - "${NGINX_HTTP_PORT}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
       interval: 10s

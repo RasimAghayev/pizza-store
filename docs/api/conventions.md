@@ -120,17 +120,29 @@ Redis-backed (`django_redis`, `CACHES["default"]`), via DRF's `ScopedRateThrottl
 `login_account` exists alongside the per-IP `login` throttle specifically to cap credential
 stuffing against one account even when attempts are spread across many source IPs.
 
-### Known limitation: `SameSite=Strict` vs. cross-origin CORS
+### `SameSite=Strict` vs. cross-origin CORS — resolved for `customer-web` (Issue #140)
 
 ADR 0006 specifies both `SameSite=Strict` cookies and a CORS origin allowlist for browser
-clients. These two controls are in tension for as long as the frontend and backend are
-served from different origins (the current topology — see the `backend` service's `data-net`
-comment in `infrastructure/compose/docker-compose.yml`): `SameSite=Strict` blocks the browser
-from attaching the cookie to *any* cross-site request, including a same-site-unaware
-`fetch()` from a separate frontend origin, regardless of what CORS allows. Implemented here
-exactly as ADR 0006 specifies, per this repository's "implement as specified, flag
-deviations" convention — full browser-mode, cookie-authenticated cross-origin testing is
-only meaningful once the frontend and backend share an origin (e.g. behind the planned Nginx
-edge). Until then, treat `browser`-mode auth as implemented-but-not-yet-exercisable
-end-to-end in a real cross-origin browser session; the `native`-mode path has no such
-limitation and is fully covered by `backend/apps/identity/tests/integration/test_auth.py`.
+clients. These two controls were in tension for as long as the frontend and backend were
+served from different origins: `SameSite=Strict` blocks the browser from attaching the cookie
+to *any* cross-site request, including a same-site-unaware `fetch()` from a separate frontend
+origin, regardless of what CORS allows. Issue #140 closed this gap for `customer-web`
+specifically: the edge `nginx` (`infrastructure/nginx/conf.d/default.conf`) now proxies `/`
+to the `frontend` Compose service (`customer-web`'s build output) and `/api/` to `backend`,
+so both are served from the same origin and `SameSite=Strict` no longer blocks the cookie.
+`management-web`/`courier-web` are not wired behind the edge the same way yet — they remain
+in the previously-documented not-yet-exercisable state until their own equivalent of this
+Task is done. The `native`-mode path has no such limitation and is fully covered by
+`backend/apps/identity/tests/integration/test_auth.py`.
+
+### Known limitation: `Secure` cookies require HTTPS, and the edge has none yet
+
+The edge `nginx` added by Issue #140 does not terminate TLS — intentionally out of that
+Task's scope (Compose-network-internal only; see the Task's Architecture Requirements). The
+`access_token`/`refresh_token`/CSRF cookies all carry `Secure` (ADR 0006), so a real browser
+loading `customer-web` over plain `http://localhost` will *store* the `Set-Cookie` response
+but will not send it back on the next request — `Secure` has no effect over HTTPS-less
+`fetch()`/XHR either. `curl -i` still shows the real `Set-Cookie` header (including
+`httpOnly`/`Secure`/`SameSite=Strict`) on a single request, which is what Issue #140's
+Acceptance Criteria checks, but a full interactive login→refresh→logout flow in an actual
+browser needs TLS termination at the edge, which is a separate, not-yet-scheduled Task.
