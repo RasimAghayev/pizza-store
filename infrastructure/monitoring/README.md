@@ -70,12 +70,51 @@ the pipeline, are documented in `infrastructure/tracing/README.md` (Task #94).
 
 ## Alerting
 
-See `infrastructure/monitoring/prometheus/alert-rules.yml` and
-`infrastructure/monitoring/alertmanager/` (added by the alerting rules Task, #95).
+Defined in `infrastructure/compose/docker-compose.yml` (Task #95):
+
+- **Prometheus** evaluates `prometheus/alert-rules.yml` (loaded via `rule_files:`) and routes
+  firing alerts to **Alertmanager** (`alerting.alertmanagers`, both in `prometheus.yml`).
+- Eight baseline rules across three groups:
+  - `baseline-availability`: `InstanceDown` (`up == 0` for 1m on any scrape target).
+  - `baseline-exporter-health`: `PostgresConnectionUnhealthy`/`MongoDBConnectionUnhealthy`/
+    `RedisConnectionUnhealthy` on each exporter's own `pg_up`/`mongodb_up`/`redis_up` gauge —
+    distinct from `up{job=...}`, which only confirms the exporter *process* answered the
+    scrape, not that its connection to the database it monitors is healthy. RabbitMQ has no
+    separate exporter (scraped directly), so there's no equivalent gauge to alert on there.
+  - `baseline-resource-thresholds`: `PostgresConnectionsNearMax` (connections > 80% of
+    `pg_settings_max_connections`), `RedisMemoryNearContainerLimit` (used memory > 200MiB —
+    80% of the `redis` service's own `mem_limit: 256m`; `redis.conf` sets no `--maxmemory`
+    here, confirmed empirically via `redis_memory_max_bytes` reporting `0`, so the Compose
+    `mem_limit` is the real constraint in force, not Redis's own), `RabbitMQQueueDepthHigh`
+    (total queue depth > 1000), `MongoDBConnectionsNearMax` (current connections > 80% of
+    current+available capacity).
+- **Alertmanager** (`alertmanager/alertmanager.yml`) routes every alert to a single receiver
+  with **no integrations configured at all** — not a `null`-type receiver (Alertmanager has
+  no such type), just a named receiver with zero notification channels, so every routed alert
+  is accepted and visible in Alertmanager's own UI/API without any outbound delivery attempt
+  or failure. **No real Slack/email/PagerDuty channel is wired up** — that's an
+  account-level integration decision explicitly out of this Task's scope until an actual
+  on-call process exists to receive it. This is a documented, deliberate gap.
+
+```text
+http://localhost:${ALERTMANAGER_PORT:-9093}
+```
+
+**Real validation (not a configuration review)**: with the full stack up, `redis` was
+stopped via Compose. `RedisConnectionUnhealthy{job="redis-exporter"}` fired in Prometheus's
+`/api/v1/alerts` after the rule's 1-minute `for` duration and was confirmed received by
+Alertmanager's `/api/v2/alerts` within its `group_wait` — not `InstanceDown`, since nothing
+scrapes a `redis` job directly: only `redis-exporter` is a scrape target, and that process
+keeps answering Prometheus throughout (`up{job="redis-exporter"}` stays `1`), it just reports
+`redis_up 0` once its own connection to the database fails. This is the exporter-health vs.
+`up{job=...}` distinction above, proven live rather than asserted. `redis` was then restarted,
+and the alert was confirmed resolved (gone from both APIs) on the next evaluation cycle.
 
 > Status: Phase 4 — metrics stack (Prometheus, Grafana, exporters) implemented and validated
 > against a real, clean `make up` run: all 9 Compose services healthy (or, for the two
 > shell-less exporters, confirmed `up` via Prometheus's own scrape result), all 5 Prometheus
 > scrape targets `up`, and real metric values (not just connectivity) confirmed for every
 > target through a live Grafana-proxied query. Logging/audit baseline added by Task #93;
-> tracing skeleton added by Task #94. Alerting lands in the next Phase 4 Task (#95).
+> tracing skeleton added by Task #94; alerting rules + Alertmanager added by Task #95, proven
+> with a real stop/restart alert fire-and-resolve cycle. Epic #8's remaining Tasks (#96-#98)
+> cover backup/restore, secret management documentation, and close-out.

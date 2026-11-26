@@ -69,9 +69,11 @@ CVE-2026-97031
 # (Task #93/Phase 4) adds three more x/net CVE IDs beyond grafana/prometheus/mongodb_exporter's
 # set, same root cause. jaeger (Task #94/Phase 4) shares the same four CVE IDs as this block
 # plus three more already covered by the gosu/stdlib block above (stdlib and x/net disclosed
-# the same underlying flaws for a few of these IDs).
+# the same underlying flaws for a few of these IDs). alertmanager (Task #95/Phase 4) shares
+# one of the four (CVE-2026-78661), same root cause.
 # Affects: mongo:7, grafana/grafana:13.3.2, prom/prometheus:v3.16.0,
-#   percona/mongodb_exporter:0.54.0, grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
+#   percona/mongodb_exporter:0.54.0, grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0,
+#   prom/alertmanager:v0.35.1
 # -----------------------------------------------------------------------------------------
 CVE-2026-78661
 CVE-2026-25681
