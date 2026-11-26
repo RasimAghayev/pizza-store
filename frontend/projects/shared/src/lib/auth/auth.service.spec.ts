@@ -69,6 +69,56 @@ describe('AuthService', () => {
     service.refreshOnce().subscribe();
     httpMock.expectOne(REFRESH_URL).flush({ message: 'Token refreshed.' });
   });
+
+  it('starts out unauthenticated, becomes authenticated on login success', () => {
+    expect(service.isAuthenticated()).toBe(false);
+
+    service.login({ email: 'a@example.com', password: 'secret' }).subscribe();
+    httpMock.expectOne(LOGIN_URL).flush({ message: 'Login successful.' });
+
+    expect(service.isAuthenticated()).toBe(true);
+  });
+
+  it('stays unauthenticated when login fails', () => {
+    let error: unknown;
+    service.login({ email: 'a@example.com', password: 'wrong' }).subscribe({
+      error: (err: unknown) => (error = err),
+    });
+    httpMock.expectOne(LOGIN_URL).flush({ error: { message: 'Invalid email or password.' } }, {
+      status: 401,
+      statusText: 'Unauthorized',
+    });
+
+    expect(error).toBeTruthy();
+    expect(service.isAuthenticated()).toBe(false);
+  });
+
+  it('becomes unauthenticated once logout completes', () => {
+    service.login({ email: 'a@example.com', password: 'secret' }).subscribe();
+    httpMock.expectOne(LOGIN_URL).flush({ message: 'Login successful.' });
+    expect(service.isAuthenticated()).toBe(true);
+
+    service.logout().subscribe();
+    httpMock.expectOne(LOGOUT_URL).flush({ message: 'Logged out.' });
+
+    expect(service.isAuthenticated()).toBe(false);
+  });
+
+  it('becomes unauthenticated when a refresh fails', () => {
+    service.login({ email: 'a@example.com', password: 'secret' }).subscribe();
+    httpMock.expectOne(LOGIN_URL).flush({ message: 'Login successful.' });
+    expect(service.isAuthenticated()).toBe(true);
+
+    let error: unknown;
+    service.refresh().subscribe({ error: (err: unknown) => (error = err) });
+    httpMock.expectOne(REFRESH_URL).flush({ error: { message: 'Invalid or expired refresh token.' } }, {
+      status: 401,
+      statusText: 'Unauthorized',
+    });
+
+    expect(error).toBeTruthy();
+    expect(service.isAuthenticated()).toBe(false);
+  });
 });
 
 interface AuthMessageResult {

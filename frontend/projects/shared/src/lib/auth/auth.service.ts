@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable, finalize, shareReplay } from 'rxjs';
+import { Injectable, inject, signal } from '@angular/core';
+import { Observable, catchError, finalize, shareReplay, tap, throwError } from 'rxjs';
 
 // calls POST /api/v1/auth/{login,refresh,logout} -- see
 // backend/apps/identity/api/views.py (Issue #129) / backend/apps/identity/api/urls.py
@@ -28,33 +28,52 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private refreshInFlight$: Observable<AuthMessage> | null = null;
 
+  // In-memory only -- no "whoami" endpoint exists yet to restore this across a page reload
+  // (documented known gap in frontend/README.md). customer-web's auth.guard.ts reads this to
+  // decide route access and must fail closed, so losing the signal on reload correctly
+  // redirects to /login rather than trusting a possibly-still-valid httpOnly cookie.
+  private readonly authenticated = signal(false);
+  readonly isAuthenticated = this.authenticated.asReadonly();
+
   login(credentials: LoginCredentials): Observable<AuthMessage> {
-    return this.http.post<AuthMessage>(LOGIN_URL, credentials, {
-      headers: BROWSER_CLIENT_HEADERS,
-      withCredentials: true,
-    });
+    return this.http
+      .post<AuthMessage>(LOGIN_URL, credentials, {
+        headers: BROWSER_CLIENT_HEADERS,
+        withCredentials: true,
+      })
+      .pipe(tap(() => this.authenticated.set(true)));
   }
 
   refresh(): Observable<AuthMessage> {
-    return this.http.post<AuthMessage>(
-      REFRESH_URL,
-      {},
-      {
-        headers: BROWSER_CLIENT_HEADERS,
-        withCredentials: true,
-      },
-    );
+    return this.http
+      .post<AuthMessage>(
+        REFRESH_URL,
+        {},
+        {
+          headers: BROWSER_CLIENT_HEADERS,
+          withCredentials: true,
+        },
+      )
+      .pipe(
+        tap(() => this.authenticated.set(true)),
+        catchError((error: unknown) => {
+          this.authenticated.set(false);
+          return throwError(() => error);
+        }),
+      );
   }
 
   logout(): Observable<AuthMessage> {
-    return this.http.post<AuthMessage>(
-      LOGOUT_URL,
-      {},
-      {
-        headers: BROWSER_CLIENT_HEADERS,
-        withCredentials: true,
-      },
-    );
+    return this.http
+      .post<AuthMessage>(
+        LOGOUT_URL,
+        {},
+        {
+          headers: BROWSER_CLIENT_HEADERS,
+          withCredentials: true,
+        },
+      )
+      .pipe(finalize(() => this.authenticated.set(false)));
   }
 
   // called by http/auth-refresh.interceptor.ts -- shares one in-flight refresh call across

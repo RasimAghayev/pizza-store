@@ -1,0 +1,32 @@
+<form class="register-form" [formGroup]="form">
+  <h1>Register</h1>
+
+  <p class="register-form__notice" role="status">
+    Registration is not yet available. This screen is a preview of the upcoming sign-up form
+    only -- submitting it does nothing.
+  </p>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Email</mat-label>
+    <input matInput type="email" formControlName="email" autocomplete="email" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Password</mat-label>
+    <input matInput type="password" formControlName="password" autocomplete="new-password" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Confirm password</mat-label>
+    <input
+      matInput
+      type="password"
+      formControlName="confirmPassword"
+      autocomplete="new-password"
+    />
+  </mat-form-field>
+
+  <button mat-raised-button type="submit" disabled>Registration not yet available</button>
+
+  <p class="register-form__login-link">Already have an account? <a routerLink="/login">Log in</a></p>
+</form>
