@@ -170,5 +170,30 @@ enough that Renovate's scan would miss real dependency surfaces.
 
 ### Observed outcome
 
-*Recorded once the real `preview -> test -> main` run described in Issue #74 completes —
-see that Issue's closing comment for the authoritative account in the meantime.*
+Once `preview` had real content, Renovate's own schedule (not the Dependency Dashboard's
+manual-run checkbox — it ran before that was needed) opened two real PRs against `preview`
+within minutes:
+
+- PR #82 — `semgrep/semgrep` Docker digest bump (`sast.yml`'s pinned image, same tag, new
+  digest)
+- PR #83 — `python` 3.12 -> 3.15 (`quality-gate.yml`'s `actions/setup-python` step)
+
+Both merged cleanly into `preview` (squash, no conflicts). The `preview -> test` promotion
+(PR #84) carried exactly those two line changes — nothing else — and went green on every
+applicable workflow (quality-gate, dependency-scan, SAST/CodeQL, container-scan).
+`test -> main` (PR #85) promoted that plus the rest of Phase 3's work accumulated since the
+last promotion (Tasks #70-#73) with every check green, confirming the full
+`preview -> test -> main` chain works end to end with real, non-simulated changes.
+
+Two operational notes from running this for the first time:
+
+- `preview` must be treated as a long-lived branch like `test`/`main`, not a disposable
+  feature branch — when promoting a PR whose head is `preview`, do not pass a
+  delete-the-head-branch option to the merge; recreate immediately via the Git Data API
+  (`POST /git/refs`) pointed at the current `test` tip if this is ever done by mistake, since
+  `test` is always a superset of what `preview` held once a promotion lands.
+- GitHub's branch-protection ruleset on `test`/`main` requires the triggering status check
+  (`validate-source-branch`) to have run against the PR's current merge ref; if the base
+  branch advances after a PR opens, the PR reports `BEHIND` and needs
+  `PUT /pulls/{n}/update-branch` (or an equivalent manual sync) before it can merge, even
+  though the underlying change has no real conflict.
