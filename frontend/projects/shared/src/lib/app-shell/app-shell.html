@@ -1,10 +1,38 @@
+<a class="app-shell__skip-link" href="#app-shell-main">Skip to main content</a>
+
 <mat-sidenav-container class="app-shell">
-  <mat-sidenav class="app-shell__nav" mode="side" opened>
+  <mat-sidenav
+    #nav
+    class="app-shell__nav"
+    [attr.role]="isHandset() ? 'dialog' : 'navigation'"
+    [attr.aria-label]="isHandset() ? 'Navigation menu' : 'Primary'"
+    [mode]="isHandset() ? 'over' : 'side'"
+    [opened]="!isHandset()"
+  >
     <ng-content select="[appShellNav]" />
   </mat-sidenav>
+
   <mat-sidenav-content>
-    <mat-toolbar color="primary" class="app-shell__toolbar">{{ appName() }}</mat-toolbar>
-    <main class="app-shell__content">
+    <header>
+      <mat-toolbar color="primary" class="app-shell__toolbar">
+        @if (isHandset()) {
+          <button
+            mat-icon-button
+            type="button"
+            class="app-shell__nav-toggle"
+            aria-label="Toggle navigation menu"
+            (click)="nav.toggle()"
+          >
+            <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
+            </svg>
+          </button>
+        }
+        <span class="app-shell__title">{{ appName() }}</span>
+      </mat-toolbar>
+    </header>
+
+    <main id="app-shell-main" class="app-shell__content" tabindex="-1">
       <ng-content />
     </main>
   </mat-sidenav-content>
