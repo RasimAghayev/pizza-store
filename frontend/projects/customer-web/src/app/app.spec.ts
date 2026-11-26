@@ -14,10 +14,10 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render the status element', async () => {
+  it('should render the app-name placeholder', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('#status')?.textContent).toContain('ok');
+    expect(compiled.querySelector('#app-name')?.textContent).toContain('customer-web');
   });
 });

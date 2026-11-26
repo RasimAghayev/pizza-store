@@ -11,6 +11,9 @@
     "isolatedModules": true,
     "experimentalDecorators": true,
     "importHelpers": true,
+    "paths": {
+      "shared": ["./dist/shared"]
+    },
     "target": "ES2022",
     "module": "preserve"
   },
@@ -22,10 +25,28 @@
   "files": [],
   "references": [
     {
-      "path": "./projects/smoke-app/tsconfig.app.json"
+      "path": "./projects/customer-web/tsconfig.app.json"
     },
     {
-      "path": "./projects/smoke-app/tsconfig.spec.json"
+      "path": "./projects/customer-web/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/management-web/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/management-web/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/courier-web/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/courier-web/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/shared/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/shared/tsconfig.spec.json"
     }
   ]
 }

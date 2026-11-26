@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-test('smoke-app renders the status element', async ({ page }) => {
+test('customer-web renders the app-name placeholder', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.locator('#status')).toHaveText('ok');
+  await expect(page.locator('#app-name')).toHaveText('customer-web');
 });
