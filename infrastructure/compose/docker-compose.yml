@@ -38,6 +38,11 @@ secrets:
   # -redis.password-file (see the redis-exporter service comment below for why).
   redis_exporter_password:
     file: ./secrets/redis_exporter_password.txt
+  # Passphrase for gpg --symmetric backup-archive encryption (Task #96). Not mounted into
+  # any service -- scripts/backup-*.sh and scripts/restore-*.sh read this file directly
+  # from the host, since gpg runs there, not inside the postgres/mongodb containers.
+  backup_encryption_key:
+    file: ./secrets/backup_encryption_key.txt
 
 services:
   postgres:
