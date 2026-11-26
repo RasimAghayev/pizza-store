@@ -3,7 +3,19 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "insecure-local-dev-key-do-not-use-in-production")
+SECRETS_DIR = Path(os.environ.get("DJANGO_SECRETS_DIR", "/run/secrets"))
+
+
+def _read_secret(name: str, default: str | None = None) -> str | None:
+    """Reads a Compose secret file (ADR 0006); falls back to `default` when run outside
+    Compose (e.g. a one-off local `manage.py` command)."""
+    path = SECRETS_DIR / name
+    if path.is_file():
+        return path.read_text().strip()
+    return default
+
+
+SECRET_KEY = _read_secret("django_secret_key", "insecure-local-dev-key-do-not-use-in-production")
 DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
 ALLOWED_HOSTS = [
     h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h
@@ -22,17 +34,16 @@ MIDDLEWARE = [
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Credentials come from environment variables only -- no hardcoded default for
-# POSTGRES_PASSWORD, so a misconfigured environment fails loudly instead of silently
-# connecting with a fake secret. No `backend` Compose service exists yet (Issue #108
-# scope), so these are plain env vars, not Compose-secret-file reads like the rest of
-# this repo's services use.
+# Postgres password comes from the `postgres_password` Compose secret (ADR 0006), the same
+# one every other service in infrastructure/compose/docker-compose.yml already reads --
+# falls back to the POSTGRES_PASSWORD env var outside Compose (e.g. CI's job-level service
+# container in quality-gate.yml, which has no secrets: mount).
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("POSTGRES_DB", "pizza_store"),
         "USER": os.environ.get("POSTGRES_USER", "pizza_store"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", ""),
+        "PASSWORD": _read_secret("postgres_password", os.environ.get("POSTGRES_PASSWORD", "")),
         "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
     }

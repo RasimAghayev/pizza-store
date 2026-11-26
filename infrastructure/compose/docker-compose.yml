@@ -43,6 +43,10 @@ secrets:
   # from the host, since gpg runs there, not inside the postgres/mongodb containers.
   backup_encryption_key:
     file: ./secrets/backup_encryption_key.txt
+  # Django SECRET_KEY for the backend service below (Issue #126, Phase 6) -- read via
+  # backend/config/settings.py's _read_secret() helper, per ADR 0006.
+  django_secret_key:
+    file: ./secrets/django_secret_key.txt
 
 services:
   postgres:
@@ -150,6 +154,37 @@ services:
       - "${RABBITMQ_PROMETHEUS_PORT}:15692"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    cpus: "1.0"
+
+  # --- Phase 6 backend foundation (Issue #126) ---------------------------------------
+
+  backend:
+    build: ../../backend
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+    secrets:
+      - django_secret_key
+      - postgres_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Deliberately data-net only, not edge-net/nginx -- ADR 0006's CORS-allowlist design
+    # assumes a browser calls this origin directly (see docs/api/conventions.md once Issue
+    # #128 adds it), which would be pointless under an Nginx-unified origin.
+    networks:
+      - data-net
+    ports:
+      - "${BACKEND_PORT}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
       interval: 10s
       timeout: 5s
       retries: 5
