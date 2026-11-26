@@ -1,0 +1,78 @@
+# Third-party actions below are pinned to a full commit SHA, not a tag, per master-prompt
+# §9. The trailing `# vX.Y.Z` comment names the human-readable release the SHA corresponds
+# to; Renovate's `github-actions` manager tracks the pinned digest and opens an update PR
+# (targeting `preview`, per renovate.json) when a newer release is published.
+name: Container Image Scan
+
+on:
+  pull_request:
+    branches:
+      - test
+  schedule:
+    # New CVEs get disclosed against these unchanged pinned images between PRs; this keeps
+    # the Compose stack's images checked even when nobody touches the Compose file.
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  COMPOSE_FILE: infrastructure/compose/docker-compose.yml
+
+jobs:
+  discover-images:
+    name: Discover Compose images
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.list.outputs.images }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Generate CI-only .env
+        run: cp .env.example .env
+
+      - name: List images pinned by the Compose file
+        id: list
+        run: |
+          images=$(docker compose -f "$COMPOSE_FILE" --env-file .env config --images \
+            | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "images=${images}" >> "$GITHUB_OUTPUT"
+
+  trivy-scan:
+    name: Trivy (${{ matrix.image }})
+    needs: discover-images
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJson(needs.discover-images.outputs.images) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Derive a filesystem-safe name for this image
+        id: safe-name
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: echo "name=$(echo "$IMAGE" | tr '/:' '--')" >> "$GITHUB_OUTPUT"
+
+      - name: Scan ${{ matrix.image }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          image-ref: ${{ matrix.image }}
+          format: sarif
+          output: trivy-${{ steps.safe-name.outputs.name }}.sarif
+          severity: CRITICAL,HIGH
+          # trivy-action unsets TRIVY_SEVERITY for `format: sarif` unless this is set, so the
+          # Security tab's "all severities" convenience would otherwise silently widen the
+          # exit-code gate below past CRITICAL/HIGH. See aquasecurity/trivy-action entrypoint.sh.
+          limit-severities-for-sarif: true
+          exit-code: "1"
+          trivyignores: .trivyignore
+
+      - name: Upload results to the Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@915412ff23e8b7659517e607487dbeae018f2934  # v4.39.5
+        with:
+          sarif_file: trivy-${{ steps.safe-name.outputs.name }}.sarif
+          category: trivy-${{ steps.safe-name.outputs.name }}

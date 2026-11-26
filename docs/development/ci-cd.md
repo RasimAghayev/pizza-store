@@ -10,7 +10,7 @@ the Phase this belongs to.
 | Branch depth | What it means | Workflow(s) |
 |---|---|---|
 | `feature/*`, `infrastructure/*`, `bugfix/*`, ... -> `test` | format/lint/type-check/unit-test/security | `quality-gate.yml` |
-| `test` | full integration/E2E/container scan | `integration-validation.yml`, `container-scan.yml` |
+| `test` | full integration/E2E/container scan | `integration-validation.yml`, `container-scan.yml` (every PR into `test`, plus weekly) |
 | `main` | production acceptance | `production-acceptance.yml` |
 | `preview` -> `test` | dependency compatibility | `dependency-scan.yml`, plus `quality-gate.yml` (every PR into `test` is linted regardless of head branch) |
 
@@ -65,6 +65,44 @@ it reaches production).
   `hashFiles('frontend/**')`, same pattern as `quality-gate.yml`. Placeholder today; Phase 6
   (Epic #10) wires Django migration checks and API integration tests against the live stack
   validated by `compose-validate`, and Phase 7 (Epic #11) adds Angular e2e smoke tests.
+
+## Container image scanning
+
+**`container-scan.yml` triggers:** `pull_request` targeting `test`, plus a weekly `schedule`
+(Monday 04:00 UTC) so newly-disclosed CVEs are caught against the unchanged pinned images
+between PRs. **Permissions:** `contents: read`, `security-events: write` (SARIF upload,
+same as `codeql.yml`).
+
+- `discover-images`: runs `docker compose -f infrastructure/compose/docker-compose.yml
+  config --images` against a CI-only `.env` (same generation mechanism as
+  `integration-validation.yml`) to derive the current image list at run time, so this
+  workflow never drifts from whatever Phase 2's Compose file actually pins. The list is
+  exposed as a job output consumed by the matrix below.
+- `trivy-scan`: a `strategy.matrix` job, one entry per image from `discover-images`, each
+  running `aquasecurity/trivy-action` with `severity: CRITICAL,HIGH` and `exit-code: 1`
+  against the real pinned image (`postgres:16-alpine`, `mongo:7`, `redis:7-alpine`,
+  `rabbitmq:3-management-alpine`, `nginxinc/nginx-unprivileged:1.27-alpine` as of Phase 2 —
+  no application Dockerfile exists yet; Phase 6/7/8 will add those and this workflow picks
+  them up automatically once they appear in the Compose file). Each image's SARIF result is
+  uploaded to the Security tab independently via `github/codeql-action/upload-sarif`, so one
+  image's findings don't mask another's.
+
+### `.trivyignore`
+
+Scanning the five real images (rather than a synthetic placeholder) surfaces genuine
+CRITICAL/HIGH CVEs today — all of them in vendor-published layers we don't build ourselves
+(Alpine base packages, and the `gosu`/mongo-tool Go binaries and `js-yaml` bundled by the
+official postgres/mongo images). Every one of them already has a fix published by the
+upstream package maintainer (Alpine, Go, npm); what's missing is the vendor image being
+rebuilt on top of that fix, which is outside this repository's control.
+
+`.trivyignore` documents each currently-known CVE, grouped by the package/binary
+responsible, with a one-line reason per group — never a blanket severity downgrade. It is a
+**living baseline, not a one-time waiver**: whenever Renovate's `docker` manager opens a PR
+bumping one of these image tags/digests, this workflow re-scans the new build, and any entry
+that no longer reproduces should be deleted in that same PR. A genuinely new CRITICAL/HIGH
+finding not already listed here is exactly the signal this workflow exists to catch, and
+should block the PR until reviewed, not be bulk-added to the ignore-list.
 
 ## SAST / code scanning
 
