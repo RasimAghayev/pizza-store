@@ -161,9 +161,9 @@ carries `role="navigation"`/`"dialog"` plus a matching `aria-label` (swapping wi
 `isHandset()`, mirroring Angular Material's own schematic-generated sidenav), so both
 landmarks are announced correctly in either layout.
 
-`customer-web/src/app/app.html`'s standalone `<h1 id="app-name">` placeholder (from Issue
-#138, predating real routing) was removed: once Issue #141 gave every route its own `<h1>`
-("Log in" / "Register" / "Dashboard"), it produced two `<h1>`s per screen. The app name is
+`customer-web/src/app/app.html`'s standalone `<h1 id="app-name">` placeholder, left over from
+Issue #138 and predating real routing, was removed: once Issue #141 gave every route its own
+`<h1>` ("Log in" / "Register" / "Dashboard"), it produced two `<h1>`s per screen. The app name is
 still visible — it was already rendered in `AppShell`'s toolbar since Issue #139 — so removing
 the duplicate is a pure heading-hierarchy fix, not a loss of content. `management-web`/
 `courier-web` keep their own `#app-name` placeholder unchanged: neither has a routed screen

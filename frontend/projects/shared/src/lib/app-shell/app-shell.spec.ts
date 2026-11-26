@@ -38,7 +38,8 @@ describe('AppShell', () => {
     });
 
     it('renders the app name in the toolbar', () => {
-      const toolbar: HTMLElement | null = fixture.nativeElement.querySelector('.app-shell__toolbar');
+      const toolbar: HTMLElement | null =
+        fixture.nativeElement.querySelector('.app-shell__toolbar');
       expect(toolbar?.textContent).toContain('customer-web');
     });
 
@@ -57,9 +58,8 @@ describe('AppShell', () => {
     });
 
     it('renders the nav toggle button', () => {
-      const toggle: HTMLElement | null = fixture.nativeElement.querySelector(
-        '.app-shell__nav-toggle',
-      );
+      const toggle: HTMLElement | null =
+        fixture.nativeElement.querySelector('.app-shell__nav-toggle');
       expect(toggle).not.toBeNull();
       expect(toggle?.getAttribute('aria-label')).toBe('Toggle navigation menu');
     });
