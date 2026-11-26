@@ -28,9 +28,23 @@ jobs:
   npm-audit:
     name: npm audit (npm dependency vulnerabilities)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
-      # job-level `if` can't call hashFiles(); the guard lives on the step instead.
-      # Inert until Phase 7 (Epic #11) adds frontend/package.json.
-      - name: Placeholder (active once package.json exists)
-        if: ${{ hashFiles('**/package.json') != '' }}
-        run: echo "package.json detected — wire npm audit --omit=dev here (Phase 7)."
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5.0.0
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Activated by Phase 5 (Task #109) ahead of Phase 7's real apps. --omit=dev
+      # scopes this to runtime dependencies; dev-tooling CVEs are tracked separately
+      # via Renovate/Dependabot, not blocked here.
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --omit=dev
