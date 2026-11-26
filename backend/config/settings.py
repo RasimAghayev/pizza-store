@@ -24,8 +24,13 @@ ALLOWED_HOSTS = [
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",
+    "apps.identity",
     "health",
 ]
+
+# identity.User (Issue #127) replaces Django's default auth.User -- see
+# backend/apps/identity/models/user.py.
+AUTH_USER_MODEL = "identity.User"
 
 MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
