@@ -56,12 +56,15 @@ latter matches mongod's actual log vocabulary — `successfully authenticated`,
 ## Known gap
 
 Retention/rotation beyond Loki's own defaults is explicitly out of scope for this Task —
-tracked as a known gap in `docs/security/secret-management.md` (Task #97) for a future
-dedicated retention-policy Task.
+a known gap deferred to a future dedicated retention-policy Task once real usage patterns
+inform one (see `docs/runbooks/incident-response.md`); not something
+`docs/security/secret-management.md` (Task #97) covers, despite an earlier, inaccurate
+cross-reference to it here.
 
-> Status: Phase 4 — Loki/Promtail log aggregation and the Postgres/MongoDB audit-logging
-> baseline implemented and validated against a real, clean `make up` run: a real `psql` DDL
-> statement and a real `mongosh` connection (authenticated and, to prove enforcement,
-> unauthenticated-and-rejected) both appear in the `audit-log.json` Grafana panel, and every
-> other container's logs are browsable in Grafana's Explore view. Alerting/tracing land in
-> later Phase 4 Tasks (#94-#95).
+> Status: Phase 4 complete (Epic #8 closed, Task #98). Loki/Promtail log aggregation and the
+> Postgres/MongoDB audit-logging baseline implemented and validated against a real, clean
+> `make up` run: a real `psql` DDL statement and a real `mongosh` connection (authenticated
+> and, to prove enforcement, unauthenticated-and-rejected) both appear in the
+> `audit-log.json` Grafana panel, and every other container's logs are browsable in
+> Grafana's Explore view. Re-verified again at Phase 4 close-out against the full combined
+> stack (`docs/operations/monitoring.md`).
