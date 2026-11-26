@@ -66,6 +66,9 @@ Redis, RabbitMQ, Nginx) healthy, observability, backup/restore tested, security 
 - `preview` — Renovate/Dependabot landing branch, never merges directly to `main`.
 - Branch names: `feature/ISSUE-<n>-<slug>`, `infrastructure/...`, `bugfix/...`, `hotfix/...`,
   `security/...`, `refactor/...`, `docs/...`.
+- Delete a branch as soon as its PR merges (`gh pr merge --delete-branch` or equivalent) —
+  a merged branch has no reason to keep existing. Never delete `main`/`test`/`preview` or any
+  branch with a currently open PR (e.g. Renovate branches targeting `preview`).
 
 ## Other hard rules (from master prompt §18)
 
@@ -84,6 +87,10 @@ GitHub (closed immediately if already acted on in-session, open/`Ready` if defer
 keep working. This gives every real decision a durable, English, searchable record instead of
 leaving it only in chat scrollback. Trivial replies, status checks, or "go ahead" messages
 don't need an Issue.
+
+If the directive is a genuine emergency, don't just log and queue it like a normal deferred
+directive: finish the task currently in progress, then immediately start and resolve the new
+emergency Issue before resuming other queued work.
 
 ## Real-world / GitHub actions
 
