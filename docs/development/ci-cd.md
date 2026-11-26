@@ -33,11 +33,19 @@ layers (see its own section below).
   (config: `.markdownlint.jsonc`, with a directory-scoped override at
   `.github/ISSUE_TEMPLATE/.markdownlint.jsonc` for that directory's frontmatter-driven
   heading structure).
-- `backend-quality` / `frontend-quality`: guarded on `hashFiles('backend/**')` /
-  `hashFiles('frontend/**')`. Inert today (those directories don't exist yet); Phase 6
-  (Epic #10) and Phase 7 (Epic #11) wire the real `ruff`/`black`/`mypy`/`pytest` and
-  `eslint`/`prettier`/`tsc`/jest steps into these jobs without needing to touch the trigger
-  or permissions block above.
+- `backend-quality`: real since Phase 5 (Task #108) — `ruff`/`black --check`/`mypy`/`pytest`
+  against the throwaway `backend/health/` app, with a job-level `postgres:16-alpine` service
+  (lighter than the full Compose stack `integration-validation.yml`'s `compose-validate` job
+  brings up). Phase 6 (Epic #10) extends this with the real `apps/<domain>/` modules; the
+  job itself needs no further changes.
+- `frontend-quality`: real since Phase 5 (Task #109) — `eslint`/`prettier --check`/`tsc`
+  (e2e harness)/`ng build smoke-app`/Vitest unit tests/Playwright e2e against the throwaway
+  `projects/smoke-app/`. Phase 7 (Epic #11) repoints this at the real applications; the job
+  itself needs no further changes.
+- `dataset-generation`: real since Phase 5 (Task #112) — runs
+  `scripts/dataset/generate.py --tier smoke --verify` on every PR into `test`. The
+  `integration` and `load` tiers are deliberately never run in CI (master prompt §10: "must
+  not overload CI") — see `scripts/dataset/README.md` for how those are proven instead.
 
 ### Third-party action pinning convention
 
@@ -57,18 +65,26 @@ it reaches production).
 - `compose-validate`: validates `infrastructure/compose/docker-compose.yml` with
   `docker compose config`, generates CI-only secret files and a CI-only `.env` from the
   tracked `*.example` templates (the same mechanism documented in
-  `infrastructure/compose/README.md` for local development, just scripted), brings the Phase
-  2 stack up with `make up`, and polls `docker compose ps` until all five services report
-  `healthy` or a 90s timeout is hit (Issue #55 observed ~20-35s on a real run). Teardown uses
-  `make clean` (`down -v --remove-orphans`) rather than plain `make down`: Issue #55
-  deliberately validated that `make down` keeps named volumes for local/persistent use, but
-  this job runs on an ephemeral runner with no reason to keep them, so it tears down
-  completely and then asserts (via `docker volume ls`/`docker network ls` filtered on the
-  job's `COMPOSE_PROJECT_NAME`) that nothing was left behind.
-- `backend-frontend-integration`: guarded on `hashFiles('backend/**')` /
-  `hashFiles('frontend/**')`, same pattern as `quality-gate.yml`. Placeholder today; Phase 6
-  (Epic #10) wires Django migration checks and API integration tests against the live stack
-  validated by `compose-validate`, and Phase 7 (Epic #11) adds Angular e2e smoke tests.
+  `infrastructure/compose/README.md` for local development, just scripted), brings the full
+  stack up with `make up`, and polls `docker compose ps` until all ten healthchecked services
+  report `healthy` (Phase 2's original five plus Phase 4's five observability services; fixed
+  in Issue #106/#107 after the expected count was left stale post-Phase-4) or a 90s timeout is
+  hit (Issue #55 observed ~20-35s on a real run). Teardown uses `make clean`
+  (`down -v --remove-orphans`) rather than plain `make down`: Issue #55 deliberately validated
+  that `make down` keeps named volumes for local/persistent use, but this job runs on an
+  ephemeral runner with no reason to keep them, so it tears down completely and then asserts
+  (via `docker volume ls`/`docker network ls` filtered on the job's `COMPOSE_PROJECT_NAME`)
+  that nothing was left behind.
+- `migration-upgrade-downgrade` ("Django migration upgrade/downgrade test"): real since
+  Phase 5 (Task #110) — against a job-level `postgres:16-alpine` service (not the full
+  Compose stack), applies every migration from empty, reverses the `health` app's migration
+  back to zero, re-applies it, and asserts `showmigrations` shows no unapplied migration.
+  Proves the upgrade/downgrade mechanism itself ahead of Phase 6 adding real business-domain
+  migrations on top of it.
+- `backend-frontend-integration`: guarded on `hashFiles('frontend/**')`. Still a placeholder
+  — migration checks are already covered by `migration-upgrade-downgrade` above, so this job
+  is reserved for real API integration tests against the live stack validated by
+  `compose-validate` (Phase 6, Epic #10) and Angular e2e smoke tests (Phase 7, Epic #11).
 
 ## Container image scanning
 
