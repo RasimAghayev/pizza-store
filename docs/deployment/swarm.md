@@ -85,11 +85,11 @@ instead of a Compose service name) — the dump/restore mechanism itself does no
 
 ## SSL
 
-Out of scope for this Task — TLS termination is the VPS deployment's responsibility (Issue
-#157, ADR 0007). A real multi-node Swarm cluster would terminate TLS the same way the VPS
-target does: Nginx (replicated here, same as this stack file already does) fronting the
-cluster with a certificate, or an external load balancer terminating TLS ahead of the Swarm
-routing mesh.
+Out of scope for this Task — TLS termination is the VPS deployment's responsibility
+(Issue #157, ADR 0007). A real multi-node Swarm cluster would terminate TLS the same way
+the VPS target does: Nginx (replicated here, same as this stack file already does) fronting
+the cluster with a certificate, or an external load balancer terminating TLS ahead of the
+Swarm routing mesh.
 
 ## Reverse proxy
 
