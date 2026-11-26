@@ -7,25 +7,25 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "smoke-app": {
+    "customer-web": {
       "projectType": "application",
       "schematics": {},
-      "root": "projects/smoke-app",
-      "sourceRoot": "projects/smoke-app/src",
+      "root": "projects/customer-web",
+      "sourceRoot": "projects/customer-web/src",
       "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "browser": "projects/smoke-app/src/main.ts",
-            "tsConfig": "projects/smoke-app/tsconfig.app.json",
+            "browser": "projects/customer-web/src/main.ts",
+            "tsConfig": "projects/customer-web/tsconfig.app.json",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "projects/smoke-app/public"
+                "input": "projects/customer-web/public"
               }
             ],
-            "styles": ["projects/smoke-app/src/styles.css"]
+            "styles": ["projects/customer-web/src/styles.css"]
           },
           "configurations": {
             "production": {
@@ -55,10 +55,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "smoke-app:build:production"
+              "buildTarget": "customer-web:build:production"
             },
             "development": {
-              "buildTarget": "smoke-app:build:development"
+              "buildTarget": "customer-web:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -69,8 +69,185 @@
         "lint": {
           "builder": "@angular-eslint/builder:lint",
           "options": {
-            "lintFilePatterns": ["projects/smoke-app/**/*.ts", "projects/smoke-app/**/*.html"],
-            "eslintConfig": "projects/smoke-app/eslint.config.js"
+            "lintFilePatterns": [
+              "projects/customer-web/**/*.ts",
+              "projects/customer-web/**/*.html"
+            ],
+            "eslintConfig": "projects/customer-web/eslint.config.js"
+          }
+        }
+      }
+    },
+    "management-web": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "projects/management-web",
+      "sourceRoot": "projects/management-web/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/management-web/src/main.ts",
+            "tsConfig": "projects/management-web/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/management-web/public"
+              }
+            ],
+            "styles": ["projects/management-web/src/styles.css"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "management-web:build:production"
+            },
+            "development": {
+              "buildTarget": "management-web:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/management-web/**/*.ts",
+              "projects/management-web/**/*.html"
+            ],
+            "eslintConfig": "projects/management-web/eslint.config.js"
+          }
+        }
+      }
+    },
+    "courier-web": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "projects/courier-web",
+      "sourceRoot": "projects/courier-web/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/courier-web/src/main.ts",
+            "tsConfig": "projects/courier-web/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/courier-web/public"
+              }
+            ],
+            "styles": ["projects/courier-web/src/styles.css"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "courier-web:build:production"
+            },
+            "development": {
+              "buildTarget": "courier-web:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": ["projects/courier-web/**/*.ts", "projects/courier-web/**/*.html"],
+            "eslintConfig": "projects/courier-web/eslint.config.js"
+          }
+        }
+      }
+    },
+    "shared": {
+      "projectType": "library",
+      "root": "projects/shared",
+      "sourceRoot": "projects/shared",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:library",
+          "options": {
+            "tsConfig": "projects/shared/tsconfig.lib.json"
+          },
+          "configurations": {
+            "production": {},
+            "development": {
+              "compilationMode": "full",
+              "declarationMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/shared/tsconfig.spec.json"
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": ["projects/shared/**/*.ts", "projects/shared/**/*.html"],
+            "eslintConfig": "projects/shared/eslint.config.js"
           }
         }
       }

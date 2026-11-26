@@ -126,8 +126,9 @@ jobs:
   frontend-quality:
     name: Frontend quality (lint/format/type-check/unit tests/e2e)
     runs-on: ubuntu-latest
-    # Activated by Phase 5 (Task #109) ahead of Phase 7's real apps -- exercises the
-    # throwaway smoke-app plus the permanent frontend/e2e/ Playwright harness.
+    # Activated by Phase 5 (Task #109) against a throwaway smoke-app; Issue #138 replaced it
+    # with the real customer-web/management-web/courier-web apps + shared lib. The
+    # frontend/e2e/ Playwright harness (permanent since Task #109) now exercises customer-web.
     defaults:
       run:
         working-directory: frontend
@@ -152,8 +153,14 @@ jobs:
       - name: TypeScript (e2e harness)
         run: npm run typecheck
 
-      - name: Build smoke-app (full Angular template type-check)
-        run: npx ng build smoke-app
+      - name: Build customer-web (full Angular template type-check)
+        run: npx ng build customer-web
+
+      - name: Build management-web (full Angular template type-check)
+        run: npx ng build management-web
+
+      - name: Build courier-web (full Angular template type-check)
+        run: npx ng build courier-web
 
       - name: Unit tests
         run: npm test
