@@ -1,0 +1,11 @@
+.app-shell {
+  min-height: 100vh;
+}
+
+.app-shell__nav {
+  width: 240px;
+}
+
+.app-shell__content {
+  padding: 16px;
+}

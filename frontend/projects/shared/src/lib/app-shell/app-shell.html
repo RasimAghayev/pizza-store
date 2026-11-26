@@ -1,0 +1,11 @@
+<mat-sidenav-container class="app-shell">
+  <mat-sidenav class="app-shell__nav" mode="side" opened>
+    <ng-content select="[appShellNav]" />
+  </mat-sidenav>
+  <mat-sidenav-content>
+    <mat-toolbar color="primary" class="app-shell__toolbar">{{ appName() }}</mat-toolbar>
+    <main class="app-shell__content">
+      <ng-content />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>
