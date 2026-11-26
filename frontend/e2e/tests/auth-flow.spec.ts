@@ -29,7 +29,9 @@ test('invalid credentials show the backend error message and do not navigate', a
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test('logging out actually revokes the session server-side, not just client-side', async ({ page }) => {
+test('logging out actually revokes the session server-side, not just client-side', async ({
+  page,
+}) => {
   // DashboardPlaceholder.logout() navigates to /login on both success AND error (see its
   // own comment -- there is no "stay logged in" outcome to preserve on a network failure),
   // so the URL alone can't prove the backend call succeeded: asserting the real response
