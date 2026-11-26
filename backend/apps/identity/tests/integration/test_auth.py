@@ -103,7 +103,7 @@ def test_browser_client_uses_cookies_and_refresh_enforces_csrf():
     refresh_cookie = login_response.cookies["refresh_token"]
     assert access_cookie["httponly"]
     assert access_cookie["samesite"] == "Strict"
-    assert refresh_cookie["path"] == "/api/v1/auth/refresh"
+    assert refresh_cookie["path"] == "/api/v1/auth"
     csrf_token = login_response.cookies["csrftoken"].value
 
     refresh_without_csrf = client.post(
@@ -131,6 +131,14 @@ def test_browser_client_uses_cookies_and_refresh_enforces_csrf():
         HTTP_X_CSRFTOKEN=csrf_token,
     )
     assert logout_response.status_code == 200
+
+    # A real browser only attaches a Path-scoped cookie to requests whose path matches
+    # that scope (RFC 6265) -- django.test.Client ignores Path entirely and would send
+    # refresh_token regardless, so this assertion is the only thing in this test that
+    # would have caught the refresh cookie's Path excluding LOGOUT_URL (a real bug found
+    # via a real-browser Playwright run, not this suite -- see Issue #154).
+    assert LOGOUT_URL.startswith(refresh_cookie["path"])
+    assert REFRESH_URL.startswith(refresh_cookie["path"])
 
 
 @pytest.mark.django_db

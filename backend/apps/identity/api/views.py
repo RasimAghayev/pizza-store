@@ -39,7 +39,10 @@ def _client_ip(request) -> str | None:
 
 
 def _refresh_cookie_path(version: str) -> str:
-    return f"/api/{version}/auth/refresh"
+    """Scoped to the whole auth module (login/refresh/logout), not just "/refresh" --
+    LogoutView also needs to read this cookie to revoke the token, and a browser only
+    attaches a Path-scoped cookie to requests whose path matches that scope (ADR 0006)."""
+    return f"/api/{version}/auth"
 
 
 def _set_auth_cookies(
