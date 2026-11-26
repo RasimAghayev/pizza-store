@@ -1,0 +1,63 @@
+# Third-party actions below are pinned to a full commit SHA, not a tag, per master-prompt
+# §9. The trailing `# vX.Y.Z` comment names the human-readable release the SHA corresponds
+# to; Renovate's `github-actions` manager tracks the pinned digest and opens an update PR
+# (targeting `preview`, per renovate.json) when a newer release is published.
+name: Quality Gate
+
+on:
+  pull_request:
+    branches:
+      - test
+
+permissions:
+  contents: read
+
+jobs:
+  repo-hygiene:
+    name: Repo hygiene (actionlint, yamllint, markdownlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Run yamllint
+        run: yamllint --config-file .yamllint.yml .
+
+      - name: Run actionlint
+        uses: reviewdog/action-actionlint@ae857e78c1b42b3d0a49637181b09d3d56d402b4  # v1.84.1
+        with:
+          reporter: local
+          fail_level: error
+          filter_mode: nofilter
+
+      - name: Run markdownlint-cli2
+        uses: DavidAnson/markdownlint-cli2-action@3ce8f712b5d8f31acd8e201be6d97e3d2bb23eb7  # v25.1.0
+        with:
+          config: .markdownlint.jsonc
+          globs: "**/*.md"
+
+  backend-quality:
+    name: Backend quality (lint/format/type-check/unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      # job-level `if` can't call hashFiles(); the guard lives on the step instead.
+      # Inert until Phase 6 (Epic #10) adds backend/ — self-activates with no workflow edit.
+      - name: Placeholder (active once backend/ exists)
+        if: ${{ hashFiles('backend/**') != '' }}
+        run: echo "backend/ detected — wire ruff/black/mypy/pytest here (Phase 6)."
+
+  frontend-quality:
+    name: Frontend quality (lint/format/type-check/unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      # job-level `if` can't call hashFiles(); the guard lives on the step instead.
+      # Inert until Phase 7 (Epic #11) adds frontend/ — self-activates with no workflow edit.
+      - name: Placeholder (active once frontend/ exists)
+        if: ${{ hashFiles('frontend/**') != '' }}
+        run: echo "frontend/ detected — wire eslint/prettier/tsc/jest here (Phase 7)."

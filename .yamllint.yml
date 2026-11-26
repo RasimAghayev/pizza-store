@@ -1,0 +1,15 @@
+extends: default
+
+rules:
+  # No hand-written YAML in this repo uses a `---` document-start marker; not worth
+  # retrofitting purely to satisfy the linter.
+  document-start: disable
+  # The default 80-column limit is too tight for Compose healthcheck commands
+  # (infrastructure/compose/docker-compose.yml) and GitHub Actions `run:` one-liners.
+  line-length:
+    max: 130
+    level: error
+  # GitHub Actions workflow files use `on:` as a mapping key; YAML 1.1 treats "on"/"off" as
+  # boolean-like, which the default truthy check otherwise flags on every workflow file.
+  truthy:
+    check-keys: false

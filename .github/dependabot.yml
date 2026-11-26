@@ -8,5 +8,7 @@ updates:
     target-branch: "preview"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     labels:
       - "type:dependency"

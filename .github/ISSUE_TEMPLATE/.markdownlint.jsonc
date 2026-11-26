@@ -1,0 +1,15 @@
+{
+  // Nested markdownlint config files replace rather than merge with the parent's rule
+  // settings, so the repo-root exceptions (MD013, MD060) are repeated here alongside the
+  // override this directory actually needs.
+  "default": true,
+  "MD013": false,
+  "MD060": false,
+  // Every template here has YAML frontmatter with a `title:` field and then opens its body
+  // directly at "### Phase" (h3) — markdownlint synthesizes a virtual h1 from the frontmatter
+  // title, so MD001 sees h1 -> h3 and flags a skipped level. The h3-first body is intentional
+  // (GitHub's own issue-type picker already shows the template name from `name:`/`title:`;
+  // repeating it as a visible h1/h2 in the body would be redundant), so MD001 is scoped off
+  // for just this directory rather than disabled repo-wide.
+  "MD001": false
+}
