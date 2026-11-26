@@ -31,14 +31,14 @@ health:
 test: test-backend test-frontend
 
 test-backend:
-	cd backend && pytest
+	$(COMPOSE) exec backend pytest
 
 test-frontend:
-	cd frontend && npm test
+	$(COMPOSE) exec frontend npm test
 
 lint:
-	cd backend && ruff check .
-	cd frontend && npm run lint
+	$(COMPOSE) exec backend ruff check .
+	$(COMPOSE) exec frontend npm run lint
 
 migrate:
 	$(COMPOSE) exec backend python manage.py migrate

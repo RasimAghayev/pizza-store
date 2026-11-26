@@ -35,7 +35,10 @@ npm run e2e           # Playwright e2e against smoke-app
 ## Known gaps
 
 - No `frontend` Docker Compose service or Dockerfile exists yet — that is Phase 7/8 scope.
-  `make test-frontend` runs directly against the local checkout instead of through Compose.
+  `make test-frontend`/`make lint` run through Compose (`$(COMPOSE) exec frontend ...`),
+  consistent with every other Makefile target, and so remain non-functional until that
+  service exists. Run tests/lint directly against the local checkout in the meantime — see
+  "Running tests locally" above.
 - No real application code — Phase 7 (Frontend Foundation) onward.
 
 > Status: Phase 5 — throwaway test-infrastructure skeleton (Task #109), real
