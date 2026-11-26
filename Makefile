@@ -34,11 +34,11 @@ test-backend:
 	cd backend && pytest
 
 test-frontend:
-	$(COMPOSE) exec frontend npm test
+	cd frontend && npm test
 
 lint:
 	cd backend && ruff check .
-	$(COMPOSE) exec frontend npm run lint
+	cd frontend && npm run lint
 
 migrate:
 	$(COMPOSE) exec backend python manage.py migrate
