@@ -17,6 +17,7 @@ volumes:
   prometheus-data:
   grafana-data:
   loki-data:
+  alertmanager-data:
 
 secrets:
   postgres_password:
@@ -174,11 +175,16 @@ services:
     restart: unless-stopped
     volumes:
       - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../monitoring/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
       - prometheus-data:/prometheus
     networks:
       - monitoring-net
     ports:
       - "${PROMETHEUS_PORT}:9090"
+    # calls alertmanager:9093 -- see prometheus.yml's alerting.alertmanagers block and the
+    # alertmanager service below
+    depends_on:
+      - alertmanager
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
       interval: 10s
@@ -186,6 +192,28 @@ services:
       retries: 5
     mem_limit: 512m
     cpus: "1.0"
+
+  # Receives alerts fired by Prometheus's alert-rules.yml -- see prometheus.yml's
+  # alerting.alertmanagers block above. No real external notification channel is wired yet
+  # (see alertmanager.yml's own comment and infrastructure/monitoring/README.md): this is a
+  # documented, deliberate gap, not a silently missing one.
+  alertmanager:
+    image: prom/alertmanager:v0.35.1
+    restart: unless-stopped
+    volumes:
+      - ../monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    networks:
+      - monitoring-net
+    ports:
+      - "${ALERTMANAGER_PORT}:9093"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 128m
+    cpus: "0.25"
 
   grafana:
     image: grafana/grafana:13.3.2
