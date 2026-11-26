@@ -3,12 +3,19 @@ networks:
     driver: bridge
   data-net:
     driver: bridge
+  # Metrics/logging/tracing containers (Phase 4). Dual-homed with data-net where a
+  # service/exporter needs to reach a database directly; monitoring-net is how
+  # Prometheus/Grafana reach those exporters and each other.
+  monitoring-net:
+    driver: bridge
 
 volumes:
   postgres-data:
   mongodb-data:
   redis-data:
   rabbitmq-data:
+  prometheus-data:
+  grafana-data:
 
 secrets:
   postgres_password:
@@ -19,6 +26,16 @@ secrets:
     file: ./secrets/redis_password.txt
   rabbitmq_password:
     file: ./secrets/rabbitmq_password.txt
+  grafana_admin_password:
+    file: ./secrets/grafana_admin_password.txt
+  # Dedicated least-privilege MongoDB monitoring user (clusterMonitor + read on local),
+  # created by infrastructure/mongodb/init/01-create-exporter-user.sh — never the root user.
+  mongodb_exporter_password:
+    file: ./secrets/mongodb_exporter_password.txt
+  # Same underlying password as redis_password, JSON-wrapped for redis_exporter's
+  # -redis.password-file (see the redis-exporter service comment below for why).
+  redis_exporter_password:
+    file: ./secrets/redis_exporter_password.txt
 
 services:
   postgres:
@@ -53,8 +70,10 @@ services:
       MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongo_root_password
     secrets:
       - mongo_root_password
+      - mongodb_exporter_password
     volumes:
       - mongodb-data:/data/db
+      - ../mongodb/init:/docker-entrypoint-initdb.d:ro
     networks:
       - data-net
     ports:
@@ -71,7 +90,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     command: >
-      sh -c 'redis-server --requirepass "$$(cat /run/secrets/redis_password)" --appendonly yes'
+      sh -c 'redis-server --requirepass "$$(cat /run/secrets/redis_password | tr -d "\r")" --appendonly yes'
     secrets:
       - redis_password
     volumes:
@@ -81,7 +100,9 @@ services:
     ports:
       - "${REDIS_PORT}:6379"
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$(cat /run/secrets/redis_password)\" ping | grep -q PONG"]
+      test:
+        - CMD-SHELL
+        - 'redis-cli --no-auth-warning -a "$$(cat /run/secrets/redis_password | tr -d "\r")" ping | grep -q PONG'
       interval: 10s
       timeout: 5s
       retries: 5
@@ -94,16 +115,22 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
     command: >
-      sh -c 'export RABBITMQ_DEFAULT_PASS="$$(cat /run/secrets/rabbitmq_password)" && exec docker-entrypoint.sh rabbitmq-server'
+      sh -c 'export RABBITMQ_DEFAULT_PASS="$$(cat /run/secrets/rabbitmq_password | tr -d "\r")" &&
+      rabbitmq-plugins enable --offline rabbitmq_prometheus &&
+      exec docker-entrypoint.sh rabbitmq-server'
     secrets:
       - rabbitmq_password
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
       - data-net
+      # rabbitmq serves its own /metrics (rabbitmq_prometheus plugin, enabled above) —
+      # scraped directly by Prometheus (Task #92), no separate exporter needed.
+      - monitoring-net
     ports:
       - "${RABBITMQ_PORT}:5672"
       - "${RABBITMQ_MANAGEMENT_PORT}:15672"
+      - "${RABBITMQ_PROMETHEUS_PORT}:15692"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -128,3 +155,123 @@ services:
       retries: 5
     mem_limit: 128m
     cpus: "0.5"
+
+  # --- Phase 4 observability stack (Task #92) -------------------------------------
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    restart: unless-stopped
+    volumes:
+      - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - monitoring-net
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    cpus: "1.0"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+    secrets:
+      - grafana_admin_password
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - monitoring-net
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    cpus: "0.5"
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    restart: unless-stopped
+    # Unlike redis/rabbitmq above, this image's own ENTRYPOINT is the exporter binary
+    # itself, not a wrapper script that execs "$@" — command: sh -c '...' alone would
+    # just be passed as literal CLI args to that binary ("unexpected sh", a real failure
+    # observed while validating this Task). entrypoint: must be overridden to a real
+    # shell so the secret-file-read happens before the binary is exec'd.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        export DATA_SOURCE_NAME="postgresql://${POSTGRES_USER}:$$(cat /run/secrets/postgres_password |
+        tr -d '\r')@postgres:5432/${POSTGRES_DB}?sslmode=disable" &&
+        exec /bin/postgres_exporter
+    secrets:
+      - postgres_password
+    networks:
+      - data-net
+      - monitoring-net
+    ports:
+      - "${POSTGRES_EXPORTER_PORT}:9187"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9187/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 128m
+    cpus: "0.25"
+
+  # percona/mongodb_exporter is a scratch-based, single-binary image: no shell, no wget/
+  # curl, so neither the secret-file-read wrapper above nor a CMD-SHELL healthcheck is
+  # possible (verified empirically, not assumed). It does not support a password-file
+  # flag either (unlike redis_exporter below), so its credential is delivered via a
+  # Compose-interpolated MONGODB_EXPORTER_PASSWORD (.env, gitignored, never committed —
+  # see docs/security/secret-management.md for why this one credential is the documented
+  # exception to the file-secret convention) for a dedicated, least-privilege monitoring
+  # user (never the Mongo root user) created by infrastructure/mongodb/init/01-create-exporter-user.sh.
+  # No healthcheck: Prometheus's own `up{job="mongodb"}` scrape result is the real signal.
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.44
+    restart: unless-stopped
+    command:
+      - --mongodb.uri=mongodb://mongodb_exporter:${MONGODB_EXPORTER_PASSWORD}@mongodb:27017/admin?authSource=admin
+      - --collector.diagnosticdata
+    networks:
+      - data-net
+      - monitoring-net
+    ports:
+      - "${MONGODB_EXPORTER_PORT}:9216"
+    mem_limit: 128m
+    cpus: "0.25"
+
+  # oliver006/redis_exporter is also a scratch-based single binary (no shell/wget/curl —
+  # verified empirically, so no healthcheck here either). It natively supports
+  # -redis.password-file, so the password stays file-based — no .env exception needed —
+  # but (a real finding, not assumed) that flag expects a JSON object keyed by address
+  # ({"redis://host:port": "password"}), not the raw password string every other service
+  # in this stack uses for its secret file. redis_exporter_password.txt therefore holds
+  # the same password as redis_password.txt in that JSON shape, and the two must be kept
+  # in sync by hand (documented in docs/security/secret-management.md).
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.67.0
+    restart: unless-stopped
+    command:
+      - -redis.addr=redis://redis:6379
+      - -redis.password-file=/run/secrets/redis_exporter_password
+    secrets:
+      - redis_exporter_password
+    networks:
+      - data-net
+      - monitoring-net
+    ports:
+      - "${REDIS_EXPORTER_PORT}:9121"
+    mem_limit: 128m
+    cpus: "0.25"

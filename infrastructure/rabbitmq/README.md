@@ -31,4 +31,11 @@ not committed — see `infrastructure/compose/README.md`).
 `docs/messaging/event-catalog.md` for the exchange/routing-key topology Phase 6 creates on top
 of this broker.
 
+**Metrics** (Phase 4, Task #92): the `rabbitmq_prometheus` plugin is enabled via
+`rabbitmq-plugins enable --offline` in the service's own `command:`, before
+`docker-entrypoint.sh` starts the server — serves `/metrics` on
+`${RABBITMQ_PROMETHEUS_PORT:-15692}`, scraped directly by Prometheus
+(`infrastructure/monitoring/README.md`); no separate exporter container needed.
+
 > Status: Phase 2 — Compose service defined and healthy; exchanges/queues arrive in Phase 6.
+> Phase 4 enables the built-in Prometheus plugin; no other change to this service.
