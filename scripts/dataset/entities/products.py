@@ -41,7 +41,7 @@ def generate_products(ctx: Context) -> list[dict[str, Any]]:
             {
                 "product_id": product_id,
                 "category": category,
-                "name": ctx.faker.unique.word().capitalize() + f" {category}",
+                "name": ctx.faker.word().capitalize() + f" {category} #{product_id}",
                 "base_price_minor": rng.randrange(low, high, 50),
                 "is_active": True,
             }

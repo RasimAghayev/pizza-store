@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""24-month synthetic business dataset generator (master prompt §10, Issue #111).
+"""24-month synthetic business dataset generator (master prompt §10, Issues #111/#112).
 
 Pure Python + Faker, no Django dependency -- runs standalone, ahead of Phase 10's
 real schema. Output is JSON Lines under --output-dir, one file per entity group.
+--tier selects smoke/integration/load volumes; see entities/config.py's SCALE_PRESETS.
 """
 from __future__ import annotations
 
@@ -35,7 +36,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--output-dir", type=Path, default=Path("data/synthetic"))
-    parser.add_argument("--scale", choices=sorted(SCALE_PRESETS), default="full")
+    parser.add_argument("--tier", choices=sorted(SCALE_PRESETS), default="integration")
     parser.add_argument(
         "--verify",
         action="store_true",
@@ -51,8 +52,8 @@ def write_all(output_dir: Path, files: dict[str, list[dict[str, Any]]]) -> None:
                 writer.write(record)
 
 
-def generate(seed: int, scale: str, output_dir: Path) -> dict[str, list[dict[str, Any]]]:
-    config = SCALE_PRESETS[scale](seed=seed)
+def generate(seed: int, tier: str, output_dir: Path) -> dict[str, list[dict[str, Any]]]:
+    config = SCALE_PRESETS[tier](seed=seed)
     ctx = Context(config)
 
     branches = generate_branches(ctx)
@@ -108,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     started = time.monotonic()
 
-    files = generate(args.seed, args.scale, args.output_dir)
+    files = generate(args.seed, args.tier, args.output_dir)
     write_all(args.output_dir, files)
 
     elapsed = time.monotonic() - started
@@ -118,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.verify:
         import verify as verify_module
 
-        return verify_module.run(args.output_dir, scale=args.scale)
+        return verify_module.run(args.output_dir, tier=args.tier)
 
     return 0
 
