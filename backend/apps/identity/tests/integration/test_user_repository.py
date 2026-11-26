@@ -1,23 +1,27 @@
 import pytest
+from faker import Faker
 
 from apps.identity.repositories.user_repository import UserRepository
+
+fake = Faker()
 
 
 @pytest.mark.django_db
 def test_create_persists_a_user_with_a_hashed_password():
     repository = UserRepository()
+    password = fake.password()
 
-    user = repository.create(email="new.user@example.com", password="Str0ngP@ssw0rd!")
+    user = repository.create(email="new.user@example.com", password=password)
 
     assert user.pk is not None
-    assert user.password != "Str0ngP@ssw0rd!"
-    assert user.check_password("Str0ngP@ssw0rd!")
+    assert user.password != password
+    assert user.check_password(password)
 
 
 @pytest.mark.django_db
 def test_get_by_email_is_case_insensitive():
     repository = UserRepository()
-    created = repository.create(email="Case.Insensitive@Example.com", password="Str0ngP@ssw0rd!")
+    created = repository.create(email="Case.Insensitive@Example.com", password=fake.password())
 
     found = repository.get_by_email("case.insensitive@example.com")
 

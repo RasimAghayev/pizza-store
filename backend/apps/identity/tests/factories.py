@@ -11,4 +11,7 @@ class UserFactory(factory.django.DjangoModelFactory):
         model = User
 
     email = factory.LazyFunction(fake.email)
-    password = factory.PostGenerationMethodCall("set_password", "Str0ngP@ssw0rd!")
+
+    @factory.post_generation
+    def password(self, create, extracted, **kwargs):
+        self.set_password(extracted or fake.password())

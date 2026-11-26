@@ -39,6 +39,9 @@ jobs:
       - name: Install Bandit
         run: pip install bandit==1.9.4
 
-      # Activated by Phase 5 (Task #108) ahead of Phase 6's real modules.
+      # Activated by Phase 5 (Task #108) ahead of Phase 6's real modules. The glob covers
+      # every module's tests/ dir (backend/health, backend/apps/<domain>, ...) so adding a
+      # new module never needs a matching edit here -- bandit's B101 (assert) and B105/B106
+      # (hardcoded test fixture passwords) findings are expected and fine in test code.
       - name: Run Bandit
-        run: bandit -r backend/ -x backend/health/tests,backend/.venv
+        run: bandit -r backend/ -x "backend/*/tests/*,backend/.venv"
