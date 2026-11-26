@@ -24,6 +24,8 @@ ALLOWED_HOSTS = [
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",
+    "rest_framework",
+    "drf_spectacular",
     "apps.identity",
     "health",
 ]
@@ -38,6 +40,23 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
+
+# API conventions (Issue #128): URL-path versioning + a shared error envelope applied via a
+# custom EXCEPTION_HANDLER -- see shared/api/exception_handler.py and docs/api/conventions.md.
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
+    "DEFAULT_VERSION": "v1",
+    "ALLOWED_VERSIONS": ["v1"],
+    "EXCEPTION_HANDLER": "shared.api.exception_handler.api_exception_handler",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Pizza Store API",
+    "DESCRIPTION": "Pizza Store Platform backend API.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}
 
 # Postgres password comes from the `postgres_password` Compose secret (ADR 0006), the same
 # one every other service in infrastructure/compose/docker-compose.yml already reads --
