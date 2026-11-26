@@ -25,7 +25,10 @@
                 "input": "projects/customer-web/public"
               }
             ],
-            "styles": ["projects/customer-web/src/styles.css"]
+            "styles": [
+              "projects/shared/src/lib/theme/theme.scss",
+              "projects/customer-web/src/styles.css"
+            ]
           },
           "configurations": {
             "production": {
@@ -96,7 +99,10 @@
                 "input": "projects/management-web/public"
               }
             ],
-            "styles": ["projects/management-web/src/styles.css"]
+            "styles": [
+              "projects/shared/src/lib/theme/theme.scss",
+              "projects/management-web/src/styles.css"
+            ]
           },
           "configurations": {
             "production": {
@@ -167,7 +173,10 @@
                 "input": "projects/courier-web/public"
               }
             ],
-            "styles": ["projects/courier-web/src/styles.css"]
+            "styles": [
+              "projects/shared/src/lib/theme/theme.scss",
+              "projects/courier-web/src/styles.css"
+            ]
           },
           "configurations": {
             "production": {

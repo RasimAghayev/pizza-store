@@ -1,0 +1,36 @@
+// calls into each app's angular.json "styles" array -- see
+// projects/customer-web/angular.json (and management-web/courier-web) build.options.styles
+@use '@angular/material' as mat;
+
+// Placeholder brand palette; visual design is out of this Task's scope (Issue #139).
+$pizza-store-theme-config: (
+  color: (
+    primary: mat.$red-palette,
+  ),
+  typography: (
+    plain-family: Roboto,
+  ),
+  density: (
+    scale: 0,
+  ),
+);
+
+html {
+  color-scheme: light dark;
+
+  @include mat.theme($pizza-store-theme-config);
+}
+
+// mat.theme() above only emits --mat-sys-* CSS variables for Material's own components;
+// typography-hierarchy() additionally styles plain HTML elements (h1-h6, p, ...) within
+// any .mat-typography subtree, which is why it needs a full define-theme() object instead
+// of the raw config map.
+.mat-typography {
+  @include mat.typography-hierarchy(mat.define-theme($pizza-store-theme-config));
+}
+
+body {
+  margin: 0;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+}

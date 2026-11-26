@@ -153,6 +153,12 @@ jobs:
       - name: TypeScript (e2e harness)
         run: npm run typecheck
 
+      # Apps resolve `shared` via tsconfig.json's "paths" -> "./dist/shared" (classic Angular
+      # CLI multi-project library resolution), so the library must be built before any app --
+      # see frontend/tsconfig.json.
+      - name: Build shared library
+        run: npx ng build shared
+
       - name: Build customer-web (full Angular template type-check)
         run: npx ng build customer-web
 
