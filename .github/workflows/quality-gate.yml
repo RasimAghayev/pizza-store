@@ -45,12 +45,53 @@ jobs:
   backend-quality:
     name: Backend quality (lint/format/type-check/unit tests)
     runs-on: ubuntu-latest
+    # Activated by Phase 5 (Task #108) ahead of Phase 6's real modules -- a lightweight
+    # job-level postgres service is enough for the pytest-django run here, not the full
+    # Compose stack (that's what integration-validation.yml's compose-validate job is for).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: pizza_store
+          POSTGRES_USER: pizza_store
+          POSTGRES_PASSWORD: pizza_store
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pizza_store -d pizza_store"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_DB: pizza_store
+      POSTGRES_USER: pizza_store
+      POSTGRES_PASSWORD: pizza_store
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+    defaults:
+      run:
+        working-directory: backend
     steps:
-      # job-level `if` can't call hashFiles(); the guard lives on the step instead.
-      # Inert until Phase 6 (Epic #10) adds backend/ — self-activates with no workflow edit.
-      - name: Placeholder (active once backend/ exists)
-        if: ${{ hashFiles('backend/**') != '' }}
-        run: echo "backend/ detected — wire ruff/black/mypy/pytest here (Phase 6)."
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Install backend dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Black
+        run: black --check .
+
+      - name: Mypy
+        run: mypy .
+
+      - name: Pytest
+        run: pytest
 
   frontend-quality:
     name: Frontend quality (lint/format/type-check/unit tests)
