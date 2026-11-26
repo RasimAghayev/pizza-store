@@ -195,6 +195,12 @@ jobs:
             elapsed=$((elapsed + interval))
           done
 
+      - name: Run database migrations
+        # `make up` only starts the containers -- backend/Dockerfile's CMD runs the dev
+        # server directly with no migration step, so the schema doesn't exist yet without
+        # this. Mirrors `make migrate`.
+        run: docker compose -f "$COMPOSE_FILE" --env-file .env exec -T backend python manage.py migrate
+
       - name: Seed the Playwright fixture user
         # Calls RegistrationService directly (apps/identity/services/registration_service.py)
         # -- no registration HTTP endpoint exists (Issue #127/#141), so this is a one-off CI

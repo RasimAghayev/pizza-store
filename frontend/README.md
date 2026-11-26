@@ -142,6 +142,7 @@ the same-origin edge from Issue #140 — unlike `playwright.config.ts`'s smoke t
 
 ```text
 make up                      # from the repo root; wait for all services to report healthy
+make migrate                 # fresh Postgres volumes have no schema until this runs
 docker compose -f infrastructure/compose/docker-compose.yml --env-file .env \
   exec backend python manage.py shell -c "
 from apps.identity.services.registration_service import RegistrationService
