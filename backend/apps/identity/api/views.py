@@ -118,7 +118,9 @@ class LoginView(_ReturnsAuthenticationFailedAs401, APIView):
                 ip_address=_client_ip(request),
             )
         except InvalidCredentialsError as exc:
-            raise exceptions.AuthenticationFailed(str(exc)) from exc
+            # Generic, exception-independent message -- never forward str(exc) into a
+            # client-facing response (CodeQL py/stack-trace-exposure, CWE-209).
+            raise exceptions.AuthenticationFailed("Invalid email or password.") from exc
 
         # Seeds the CSRF cookie needed for the subsequent cookie-authenticated
         # refresh/logout calls in browser mode -- no prior session exists yet to forge by
@@ -159,7 +161,11 @@ class RefreshView(_ReturnsAuthenticationFailedAs401, APIView):
                 ip_address=_client_ip(request),
             )
         except (InvalidRefreshTokenError, StolenRefreshTokenError) as exc:
-            raise exceptions.AuthenticationFailed(str(exc)) from exc
+            # Generic, exception-independent message -- never forward str(exc) into a
+            # client-facing response (CodeQL py/stack-trace-exposure, CWE-209). Also avoids
+            # telling a caller whether a token was merely expired/unknown vs. a detected
+            # reuse of an already-rotated token.
+            raise exceptions.AuthenticationFailed("Invalid or expired refresh token.") from exc
 
         if client_type == "browser":
             response = Response({"message": "Token refreshed."})
