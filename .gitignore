@@ -36,6 +36,9 @@ infrastructure/compose/secrets/*.txt
 # Backup archives (Task #96) -- data, never committed
 /backups/
 
+# Synthetic dataset output (Task #111) -- generated, never committed
+/data/synthetic/
+
 # OS / IDE
 .DS_Store
 Thumbs.db
