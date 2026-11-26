@@ -87,17 +87,72 @@ jobs:
             exit 1
           fi
 
+  migration-upgrade-downgrade:
+    name: Django migration upgrade/downgrade test
+    runs-on: ubuntu-latest
+    # Activated by Phase 5 (Task #110) against the one real migration Task #108's `health`
+    # app produces -- proves the upgrade/downgrade mechanism itself works before Phase 6
+    # starts adding real business-domain migrations on top of it.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: pizza_store
+          POSTGRES_USER: pizza_store
+          POSTGRES_PASSWORD: pizza_store
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pizza_store -d pizza_store"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_DB: pizza_store
+      POSTGRES_USER: pizza_store
+      POSTGRES_PASSWORD: pizza_store
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Install backend dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Upgrade (apply all migrations from empty)
+        run: python manage.py migrate
+
+      - name: Downgrade (reverse the health app's migration back to nothing)
+        run: python manage.py migrate health zero
+
+      - name: Re-upgrade (confirm forward migration re-applies cleanly)
+        run: python manage.py migrate
+
+      - name: Assert final state is fully applied, not partial
+        run: |
+          output=$(python manage.py showmigrations health)
+          echo "$output"
+          if echo "$output" | grep -q '\[ \]'; then
+            echo "health app has an unapplied migration after re-upgrade" >&2
+            exit 1
+          fi
+
   backend-frontend-integration:
     name: Backend/frontend integration tests (placeholder)
     runs-on: ubuntu-latest
     needs: compose-validate
     steps:
       # job-level `if` can't call hashFiles(); the guard lives on the step instead.
-      # Inert until Phase 6 (Django migration checks + API integration tests) and Phase 7
-      # (Angular e2e smoke tests) add real backend/frontend/ source to run against the
-      # live stack validated by compose-validate above.
-      - name: Placeholder (active once backend/ or frontend/ exists)
-        if: ${{ hashFiles('backend/**') != '' || hashFiles('frontend/**') != '' }}
-        run: |
-          echo "backend/ or frontend/ detected — wire Django migration checks, API"
-          echo "integration tests (Phase 6), and Angular e2e smoke tests (Phase 7) here."
+      # Migration upgrade/downgrade checks are covered by the migration-upgrade-downgrade
+      # job above (Phase 5, Task #110). Inert until Phase 7 (Angular e2e smoke tests) adds
+      # real frontend/ source to run against the live stack validated by compose-validate.
+      - name: Placeholder (active once frontend/ exists)
+        if: ${{ hashFiles('frontend/**') != '' }}
+        run: echo "frontend/ detected — wire Angular e2e smoke tests (Phase 7) here."
