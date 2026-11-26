@@ -1,0 +1,11 @@
+from apps.identity.models import User
+
+
+class UserRepository:
+    """Only file in this module allowed to issue an ORM query, per ADR 0004."""
+
+    def create(self, *, email: str, password: str) -> User:
+        return User.objects.create_user(email=email, password=password)
+
+    def get_by_email(self, email: str) -> User | None:
+        return User.objects.filter(email__iexact=email).first()
