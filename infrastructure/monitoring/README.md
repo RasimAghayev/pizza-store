@@ -57,6 +57,12 @@ file, not just the one that first exposed it.
 no shell, `wget`, or `curl` to run a `CMD-SHELL` probe against. Prometheus's own `up{job=...}`
 scrape result is the real health signal for these two.
 
+## Logging
+
+Grafana's Loki datasource and the `audit-log.json` dashboard are provisioned here too, but the
+Loki/Promtail services themselves and the audit-logging baseline are documented in
+`infrastructure/logging/README.md` (Task #93).
+
 ## Alerting
 
 See `infrastructure/monitoring/prometheus/alert-rules.yml` and
@@ -66,5 +72,5 @@ See `infrastructure/monitoring/prometheus/alert-rules.yml` and
 > against a real, clean `make up` run: all 9 Compose services healthy (or, for the two
 > shell-less exporters, confirmed `up` via Prometheus's own scrape result), all 5 Prometheus
 > scrape targets `up`, and real metric values (not just connectivity) confirmed for every
-> target through a live Grafana-proxied query. Alerting/logging/tracing land in later Phase 4
-> Tasks (#93-#95).
+> target through a live Grafana-proxied query. Logging/audit baseline added by Task #93.
+> Alerting/tracing land in later Phase 4 Tasks (#94-#95).

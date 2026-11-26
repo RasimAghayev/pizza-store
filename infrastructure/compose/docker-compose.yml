@@ -16,6 +16,7 @@ volumes:
   rabbitmq-data:
   prometheus-data:
   grafana-data:
+  loki-data:
 
 secrets:
   postgres_password:
@@ -41,6 +42,9 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    # Baseline audit logging (Task #93): connection/disconnection events plus every DDL
+    # statement, shipped to Loki by promtail like every other container's stdout/stderr.
+    command: ["postgres", "-c", "log_connections=on", "-c", "log_disconnections=on", "-c", "log_statement=ddl"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -65,6 +69,13 @@ services:
   mongodb:
     image: mongo:7
     restart: unless-stopped
+    # Baseline audit logging (Task #93): --auth turns on real authentication enforcement
+    # (previously only MONGO_INITDB_ROOT_* existed, without --auth mongod did not actually
+    # require credentials) and logComponentVerbosity raises accessControl log verbosity so
+    # auth attempts are visible. Confirmed by real test that this list-form command (it
+    # starts with "-", so docker-entrypoint.sh prepends "mongod" itself) does not conflict
+    # with first-run MONGO_INITDB_ROOT_* initialization.
+    command: ["--auth", "--setParameter", "logComponentVerbosity={\"accessControl\":{\"verbosity\":1}}"]
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongo_root_password
@@ -280,5 +291,41 @@ services:
       - monitoring-net
     ports:
       - "${REDIS_EXPORTER_PORT}:9121"
+    mem_limit: 128m
+    cpus: "0.25"
+
+  # --- Phase 4 logging & audit baseline (Task #93) --------------------------------
+
+  loki:
+    image: grafana/loki:3.3.2
+    restart: unless-stopped
+    volumes:
+      - ../logging/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - monitoring-net
+    ports:
+      - "${LOKI_PORT}:3100"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    cpus: "0.5"
+
+  promtail:
+    image: grafana/promtail:3.3.2
+    restart: unless-stopped
+    volumes:
+      - ../logging/promtail-config.yml:/etc/promtail/config.yml:ro
+      # Read-only: discovery and log-reading only, never container/daemon control.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - monitoring-net
+    depends_on:
+      loki:
+        condition: service_healthy
     mem_limit: 128m
     cpus: "0.25"
