@@ -11,12 +11,16 @@ the Phase this belongs to.
 |---|---|---|
 | `feature/*`, `infrastructure/*`, `bugfix/*`, ... -> `test` | format/lint/type-check/unit-test/security | `quality-gate.yml` |
 | `test` | full integration/E2E/container scan | `integration-validation.yml`, `container-scan.yml` (every PR into `test`, plus weekly) |
-| `main` | production acceptance | `production-acceptance.yml` |
+| `main` | production acceptance | `production-acceptance.yml` (`push` to `main` only — a post-merge gate, not a PR check) |
 | `preview` -> `test` | dependency compatibility | `dependency-scan.yml`, plus `quality-gate.yml` (every PR into `test` is linted regardless of head branch) |
 
 `branch-source-validation.yml` (Phase 0) is a prerequisite to all of the above: it restricts
 *which* branch a PR may come from for a given base, so the right depth tier above always
 applies to the right kind of change.
+
+`secret-scan.yml` is cross-cutting rather than tied to one depth tier: it runs on every
+`push`/`pull_request` regardless of branch, as the third of three independent secret-scanning
+layers (see its own section below).
 
 ## `quality-gate.yml`
 
@@ -197,3 +201,47 @@ Two operational notes from running this for the first time:
   branch advances after a PR opens, the PR reports `BEHIND` and needs
   `PUT /pulls/{n}/update-branch` (or an equivalent manual sync) before it can merge, even
   though the underlying change has no real conflict.
+
+## Production acceptance
+
+**`production-acceptance.yml` triggers:** `push` targeting `main` only. Because
+`branch-source-validation.yml` already restricts `main` to merge commits from already-CI-green
+`test -> main` PRs, this workflow is deliberately a post-merge gate confirming what actually
+landed on `main`, not a pre-merge PR check — the master-prompt §9 "production acceptance"
+tier is about the commit now live on `main`, not a hypothetical merge result.
+**Permissions:** `contents: read`.
+
+- `compose-acceptance`: re-runs the exact same validate/boot/health-poll/teardown sequence as
+  `integration-validation.yml`'s `compose-validate` job (see that section above), against
+  `main`'s copy of the Compose file, as a final confirmation independent of whatever already
+  ran on the `test -> main` PR itself.
+- `deploy-readiness`: guarded on `hashFiles('backend/Dockerfile') != '' ||
+  hashFiles('frontend/**/Dockerfile') != ''`, same placeholder pattern as the other Phase 3
+  workflows. Inert until Phase 8 (Deployment Infrastructure) adds a real Dockerfile; will wire
+  versioned image build/push and a staging smoke test at that point.
+
+## Secret scanning (three independent layers)
+
+Per Epic #7's Security Requirements, this repository runs three independent secret-scanning
+layers with no single point of failure:
+
+1. **GitGuardian** — an account-wide GitHub App (pre-existing on the user's account, not set
+   up as part of this project; see the Phase 0 notes in `docs/architecture/README.md`).
+2. **GitHub native secret scanning + push protection** — a repository setting under
+   `Settings -> Code security and analysis`. Confirmed already enabled on this repository
+   (`secret_scanning: enabled`, `secret_scanning_push_protection: enabled` via the repository
+   API) before this Task started; no toggle was needed.
+3. **`secret-scan.yml`** (this Task) — an in-CI, repo-owned layer using `gitleaks/gitleaks-action`
+   with the default ruleset. **Triggers:** every `push` and `pull_request`, with no branch
+   filter, so it covers every branch this repository has, not just `test`/`main`.
+   **Permissions:** `contents: read`. Checkout uses `fetch-depth: 0` so gitleaks scans full
+   history rather than a shallow single-commit diff. `GITLEAKS_ENABLE_COMMENTS` is set to
+   `"false"`: the action's PR-comment feature needs `pull-requests: write`, and this workflow
+   deliberately stays read-only since findings already surface in the job log and step
+   summary. No `GITLEAKS_LICENSE` is required — that's only for GitHub organization accounts,
+   and this repository is on a personal account.
+
+None of the three layers replaces another: GitGuardian and GitHub's native scanning operate
+independently of this repository's own CI, while `secret-scan.yml` is the one layer whose
+configuration (ruleset, comment behavior, triggers) this repository actually owns and can
+version-control.
