@@ -6,4 +6,14 @@ See [ADR 0007](../adr/0007-deployment-target-priority.md) for why AWS is the pri
 (the detailed Terraform skeleton and full comparison) while GCP and Azure receive a lighter
 service-mapping comparison.
 
-> Status: Phase 1 — primary cloud provider decided (ADR 0007); implementation is Phase 8.
+- [`aws.md`](aws.md) — full architecture, cost/security/backup/scaling comparison, and a
+  validated-only Terraform skeleton (`infrastructure/terraform/aws/`). Issue #160.
+- [`gcp.md`](gcp.md) — service mapping and a lighter comparison; no Terraform skeleton
+  (no managed RabbitMQ-compatible broker). Issue #160.
+- [`azure.md`](azure.md) — service mapping and a lighter comparison; no Terraform skeleton
+  (same reason as GCP). Issue #160.
+- [`comparison.md`](comparison.md) — the cross-cutting table spanning all six deployment
+  options (VPS, Swarm, Kubernetes, AWS, GCP, Azure). Issue #160.
+
+> Status: Phase 8 — AWS/GCP/Azure documentation and the AWS Terraform skeleton done
+> (Issue #160). No real cloud resource was created for any of it.
