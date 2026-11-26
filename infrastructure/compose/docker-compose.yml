@@ -296,6 +296,11 @@ services:
 
   # --- Phase 4 logging & audit baseline (Task #93) --------------------------------
 
+  # grafana/loki switched to a distroless, single-binary image: no shell, ls, wget, or curl
+  # at all (verified empirically -- even `docker run --entrypoint ls` fails with "executable
+  # file not found"), so no CMD-SHELL healthcheck is possible here, same situation as
+  # mongodb-exporter/redis-exporter below. Loki's own startup log line ("Loki started") and,
+  # functionally, promtail successfully pushing to it are the real signal.
   loki:
     image: grafana/loki:3.7.10
     restart: unless-stopped
@@ -306,11 +311,6 @@ services:
       - monitoring-net
     ports:
       - "${LOKI_PORT}:3100"
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     mem_limit: 256m
     cpus: "0.5"
 
@@ -330,6 +330,6 @@ services:
       - monitoring-net
     depends_on:
       loki:
-        condition: service_healthy
+        condition: service_started
     mem_limit: 128m
     cpus: "0.25"
