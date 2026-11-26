@@ -47,6 +47,11 @@ secrets:
   # backend/config/settings.py's _read_secret() helper, per ADR 0006.
   django_secret_key:
     file: ./secrets/django_secret_key.txt
+  # RS256 JWT signing keypair (ADR 0006, Issue #129) -- generated via
+  # scripts/generate-jwt-keypair.py; read by backend/apps/identity/services/token_service.py.
+  # The public key is derived in-process, never stored as a second secret.
+  jwt_private_key:
+    file: ./secrets/jwt_private_key.txt
 
 services:
   postgres:
@@ -170,11 +175,18 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS}
     secrets:
       - django_secret_key
       - postgres_password
+      - redis_password
+      - jwt_private_key
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     # Deliberately data-net only, not edge-net/nginx -- ADR 0006's CORS-allowlist design
     # assumes a browser calls this origin directly (see docs/api/conventions.md), which

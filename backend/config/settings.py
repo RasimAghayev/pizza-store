@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "rest_framework",
     "drf_spectacular",
+    "corsheaders",
     "apps.identity",
     "health",
 ]
@@ -34,21 +35,55 @@ INSTALLED_APPS = [
 # backend/apps/identity/models/user.py.
 AUTH_USER_MODEL = "identity.User"
 
+# Argon2id first (ADR 0006) -- PBKDF2 stays only as a read-compatibility fallback for
+# password hashes, never used to hash a new password.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+]
+
 MIDDLEWARE = [
+    # Must run before CommonMiddleware per django-cors-headers' own setup docs.
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # DRF's APIView exempts every view from this middleware's own enforcement
+    # (rest_framework.views.APIView.as_view wraps every view in csrf_exempt); kept in
+    # MIDDLEWARE so it still sets the CSRF cookie on responses that call
+    # django.middleware.csrf.get_token(). Actual enforcement for cookie-authenticated
+    # requests is done explicitly via shared/api/csrf.py::enforce_csrf -- see ADR 0006.
+    "django.middleware.csrf.CsrfViewMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
+# CORS (ADR 0006): an explicit origin allowlist, never combined with a wildcard; credentials
+# are required since browser clients authenticate via cookies, not an Authorization header.
+CORS_ALLOWED_ORIGINS = [
+    o for o in os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS", "").split(",") if o
+]
+CORS_ALLOW_CREDENTIALS = True
+
+# The CSRF cookie carries the same policy as the access/refresh cookies (ADR 0006) except
+# httponly -- the frontend must read this cookie's value to send it back as X-CSRFToken.
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = "Strict"
+
 # API conventions (Issue #128): URL-path versioning + a shared error envelope applied via a
 # custom EXCEPTION_HANDLER -- see shared/api/exception_handler.py and docs/api/conventions.md.
+# Throttle scopes (Issue #129, ADR 0006) are applied per-view in apps/identity/api/views.py;
+# rates documented in docs/api/conventions.md.
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
     "DEFAULT_VERSION": "v1",
     "ALLOWED_VERSIONS": ["v1"],
     "EXCEPTION_HANDLER": "shared.api.exception_handler.api_exception_handler",
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "10/min",
+        "login_account": "5/min",
+        "refresh": "30/min",
+    },
 }
 
 SPECTACULAR_SETTINGS = {
@@ -72,6 +107,27 @@ DATABASES = {
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
     }
 }
+
+# Redis-backed cache (ADR 0006), used today by DRF's ScopedRateThrottle on the identity
+# module's login/refresh endpoints -- a per-process in-memory cache would not share throttle
+# counters across workers. Same `redis_password` Compose secret the `redis` service itself
+# reads; falls back to the REDIS_PASSWORD env var outside Compose.
+_REDIS_PASSWORD = _read_secret("redis_password", os.environ.get("REDIS_PASSWORD", ""))
+_REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+_REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"redis://:{_REDIS_PASSWORD}@{_REDIS_HOST}:{_REDIS_PORT}/1",
+        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+    }
+}
+
+# RS256 JWT signing key (ADR 0006, Issue #129) -- read by
+# apps/identity/services/token_service.py, which falls back to an ephemeral, process-local
+# keypair when this is unset (e.g. a lightweight test/CI run outside Compose). Generated via
+# scripts/generate-jwt-keypair.py; see docs/security/secret-management.md.
+JWT_PRIVATE_KEY_PEM = _read_secret("jwt_private_key")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

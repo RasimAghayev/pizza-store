@@ -1,7 +1,8 @@
 # API Conventions
 
-> Status: Phase 6 (Issue #128) — Django REST Framework + drf-spectacular configured and
-> applied against a real endpoint. Every later module's API follows these conventions.
+> Status: Phase 6 (Issues #128, #129) — Django REST Framework + drf-spectacular configured,
+> applied against a real endpoint, and extended with the JWT/refresh-token authentication
+> baseline. Every later module's API follows these conventions.
 
 ## Versioning
 
@@ -72,3 +73,64 @@ endpoint returning `{"message": "pong"}`. It exists only to prove the three conv
 against something real — URL-path versioning, OpenAPI schema generation, and the error
 envelope all have at least one real endpoint exercising them, not just unused configuration.
 It is not a product endpoint; later modules do not depend on it.
+
+## Authentication (Issue #129, ADR 0006)
+
+`POST /api/v1/auth/{login,refresh,logout}` (`backend/apps/identity/api/`) issue and rotate
+the two tokens every other authenticated endpoint will rely on: a short-lived RS256 JWT
+access token (15 min) and an opaque, rotate-on-use refresh token (14 days, only its SHA-256
+hash persisted).
+
+### `X-Client-Type` header
+
+Every auth request must send `X-Client-Type: browser` or `X-Client-Type: native`; its
+absence or any other value is a 400. The two client types are handed tokens differently
+(ADR 0006):
+
+| Client type | Access/refresh token delivery                                    |
+|-------------|-------------------------------------------------------------------|
+| `browser`   | httpOnly, `Secure`, `SameSite=Strict` cookies (`access_token`, `refresh_token`) |
+| `native`    | Both tokens in the JSON response/request body                    |
+
+### CSRF scoping
+
+DRF's `APIView.as_view()` wraps every view in `csrf_exempt` unconditionally, so
+`CsrfViewMiddleware` never enforces CSRF on its own for any DRF view. For `browser`-mode
+requests, `shared/api/csrf.py::enforce_csrf` is called explicitly to re-enable the
+`X-CSRFToken` double-submit check — but only on `refresh` and `logout`, not `login`:
+
+- **`login` is exempt.** No session/cookie exists yet for an attacker to forge at this point
+  — the request carries only a candidate email/password, which CSRF protection does not
+  apply to. The response seeds the CSRF cookie (`django.middleware.csrf.get_token`) that the
+  *next* cookie-authenticated call will need.
+- **`refresh` and `logout` enforce it.** Both are cookie-authenticated, state-changing
+  requests once a browser session exists, which is exactly what CSRF protection is for.
+
+### Rate limiting
+
+Redis-backed (`django_redis`, `CACHES["default"]`), via DRF's `ScopedRateThrottle`/
+`SimpleRateThrottle` (`backend/apps/identity/api/throttling.py`):
+
+| Scope          | Rate   | Keyed by                          | Applies to      |
+|----------------|--------|------------------------------------|-----------------|
+| `login`        | 10/min | client IP                          | `POST /login/`  |
+| `login_account`| 5/min  | submitted email (independent of IP)| `POST /login/`  |
+| `refresh`      | 30/min | client IP                          | `POST /refresh/`|
+
+`login_account` exists alongside the per-IP `login` throttle specifically to cap credential
+stuffing against one account even when attempts are spread across many source IPs.
+
+### Known limitation: `SameSite=Strict` vs. cross-origin CORS
+
+ADR 0006 specifies both `SameSite=Strict` cookies and a CORS origin allowlist for browser
+clients. These two controls are in tension for as long as the frontend and backend are
+served from different origins (the current topology — see the `backend` service's `data-net`
+comment in `infrastructure/compose/docker-compose.yml`): `SameSite=Strict` blocks the browser
+from attaching the cookie to *any* cross-site request, including a same-site-unaware
+`fetch()` from a separate frontend origin, regardless of what CORS allows. Implemented here
+exactly as ADR 0006 specifies, per this repository's "implement as specified, flag
+deviations" convention — full browser-mode, cookie-authenticated cross-origin testing is
+only meaningful once the frontend and backend share an origin (e.g. behind the planned Nginx
+edge). Until then, treat `browser`-mode auth as implemented-but-not-yet-exercisable
+end-to-end in a real cross-origin browser session; the `native`-mode path has no such
+limitation and is fully covered by `backend/apps/identity/tests/integration/test_auth.py`.
