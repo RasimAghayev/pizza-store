@@ -35,6 +35,17 @@ class AddressService:
             raise AddressNotFoundError(address_id)
         return address
 
+    def get_owned_by_customer_id(self, *, customer_id: int, address_id: int) -> Address | None:
+        """Cross-module lookup for a caller that already resolved `customer_id` (=
+        `Customer.pk`) itself and has no `user_id` to go through `get_owned()`/`_customer()`
+        -- e.g. `apps.orders.services.order_service.OrderService.checkout()` (Issue #197),
+        which gets `customer_id` from its own view's `_customer_id_for(request)`. Returns
+        `None` rather than raising `AddressNotFoundError` on any mismatch: the non-raising,
+        cross-module convention `BranchService.get_by_id()`/`ProfileService.get_by_id()`
+        already use, letting the calling module raise its own locally-named not-found error
+        (ADR 0004 -- orders never imports this module's exception types)."""
+        return self._address_repository.get_for_customer(address_id, customer_id)
+
     def create(self, *, user_id: int, is_default: bool = False, **fields: object) -> Address:
         customer = self._customer(user_id)
         with transaction.atomic():
