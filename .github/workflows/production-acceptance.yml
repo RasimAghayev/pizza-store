@@ -44,9 +44,18 @@ jobs:
 
       - name: Wait for all services to report healthy
         run: |
-          # Phase 2 (Issue #55) observed every service reaching `healthy` within ~20-35s;
-          # 90s gives comfortable headroom before this step fails the job.
-          expected=5
+          # 12 of the 17 services declare a healthcheck (the other 5 -- loki, promtail,
+          # mongodb-exporter, redis-exporter, otel-collector -- are shell-less/distroless
+          # images with no healthcheck by design, see docs/deployment/swarm.md's
+          # Troubleshooting section for the pattern). This count must track
+          # integration-validation.yml's own `expected` value -- that workflow hit the same
+          # stale-count bug once already (Issue #106, fixed only there) before this sibling
+          # workflow hit it again with the exact same root cause (Issue #167's Phase 9 Gate
+          # audit): a value hardcoded in Phase 2, when only 5 services existed, was never
+          # updated as later phases added healthchecked services, so every run timed out
+          # regardless of real stack health. 90s gives comfortable headroom once the count
+          # is correct.
+          expected=12
           timeout=90
           interval=5
           elapsed=0
