@@ -262,6 +262,7 @@ services:
   prometheus:
     image: prom/prometheus:v3.16.0
     restart: unless-stopped
+    profiles: ["observability"]
     volumes:
       - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ../monitoring/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
@@ -289,6 +290,7 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.35.1
     restart: unless-stopped
+    profiles: ["observability"]
     volumes:
       - ../monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager-data:/alertmanager
@@ -307,6 +309,7 @@ services:
   grafana:
     image: grafana/grafana:13.3.2
     restart: unless-stopped
+    profiles: ["observability"]
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
@@ -344,6 +347,7 @@ services:
     # observed while validating this Task). entrypoint: must be overridden to a real
     # shell so the secret-file-read happens before the binary is exec'd.
     entrypoint: ["/bin/sh", "-c"]
+    profiles: ["observability"]
     command:
       - >
         export DATA_SOURCE_NAME="postgresql://${POSTGRES_USER}:$$(cat /run/secrets/postgres_password |
@@ -376,6 +380,7 @@ services:
   mongodb-exporter:
     image: percona/mongodb_exporter:0.54.0
     restart: unless-stopped
+    profiles: ["observability"]
     command:
       - --mongodb.uri=mongodb://mongodb_exporter:${MONGODB_EXPORTER_PASSWORD}@mongodb:27017/admin?authSource=admin
       - --collector.diagnosticdata
@@ -398,6 +403,7 @@ services:
   redis-exporter:
     image: oliver006/redis_exporter:v1.99.0
     restart: unless-stopped
+    profiles: ["observability"]
     command:
       - -redis.addr=redis://redis:6379
       - -redis.password-file=/run/secrets/redis_exporter_password
@@ -421,6 +427,7 @@ services:
   loki:
     image: grafana/loki:3.7.10
     restart: unless-stopped
+    profiles: ["observability"]
     volumes:
       - ../logging/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki-data:/loki
@@ -438,6 +445,7 @@ services:
   promtail:
     image: grafana/promtail:3.6.11
     restart: unless-stopped
+    profiles: ["observability"]
     volumes:
       - ../logging/promtail-config.yml:/etc/promtail/config.yml:ro
       # Read-only: discovery and log-reading only, never container/daemon control.
@@ -459,6 +467,7 @@ services:
   jaeger:
     image: jaegertracing/all-in-one:1.76.0
     restart: unless-stopped
+    profiles: ["observability"]
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     networks:
@@ -480,6 +489,7 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.166.0
     restart: unless-stopped
+    profiles: ["observability"]
     volumes:
       - ../tracing/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
     networks:
