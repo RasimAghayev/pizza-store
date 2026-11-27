@@ -44,3 +44,11 @@ domain/business logic for a specific module (that belongs under `backend/apps/<m
   on. Scope is always re-derived from the object, never trusted from JWT claims alone, so a
   stale or ambiguous claim can't widen access. Calls only duck-typed methods on `request.user`
   — no import of `apps.identity`, per this directory's own charter above.
+- `tests/integration/test_multi_tenant_isolation.py` (Issue #183, Phase 10 close-out) —
+  `TwoStepPermission` proven end-to-end across every staff-facing resource Phase 10 built
+  (`restaurants`, `branches`, `products`, `menu`), not just one module's own suite: two full
+  organizations, each with a restaurant/branch/product/menu-category/menu-item, asserting
+  every staff write/read endpoint rejects the other organization's/branch's staff with `403`
+  in both directions, plus one sanity check that an unscoped grant (Super Admin) passes all of
+  them. Mirrors `test_two_step_permission.py`'s unit-level coverage at the real-HTTP,
+  cross-module level Epic #14's own Acceptance Criteria require.

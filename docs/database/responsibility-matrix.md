@@ -15,7 +15,7 @@ prompt §6 and §11, so Phase 6+ implementers do not have to re-derive it per mo
 | branches | Structured entity referenced by orders, inventory, and staff role scope (ADR 0006); low write volume. |
 | restaurants | Structured parent entity of branches; same relational reasoning. |
 | products | Structured, referenced by pricing, cart, and orders; core fields need relational joins for checkout totals. |
-| menu items | Structured, joined against products/pricing/availability at order time — core fields stay relational; variable extras live in MongoDB as flexible product metadata (below). |
+| menu items | Structured, joined against products/pricing/availability at order time — including allergens/toppings/options (Issue #181/#182), all fully relational; see the amendment below MongoDB's table for why this diverged from this document's original Phase 1 plan. |
 | pricing / promotions | Order totals are computed server-side only (master prompt §11) by a centralized pricing engine — this calculation cannot tolerate eventual consistency. |
 | orders | Financial/ACID record; the authoritative state machine (master prompt §11) lives here. |
 | order_items | Financial/ACID, same transaction boundary as orders. |
@@ -35,7 +35,27 @@ prompt §6 and §11, so Phase 6+ implementers do not have to re-derive it per mo
 | recommendation history | Document-shaped, explicitly assigned to MongoDB by ADR 0002; feeds the AI Pizza Recommendation feature without touching transactional tables. |
 | analytics documents | Explicitly assigned to MongoDB by ADR 0002; aggregation-heavy, schema-flexible. |
 | notification history | Delivery/retry/tracking record per notification (master prompt §6) — variable shape per channel (push/email/SMS/in-app), not relational. |
-| flexible product metadata | Variable, per-product extra detail (e.g. nutritional/allergen detail, imagery variants) that does not need relational joins — explicitly assigned to MongoDB by ADR 0002, complementing the relational core fields in `products`/`menu items` above. |
+
+### Amendment (2026-11-27, Issue #183)
+
+This table originally planned a `flexible product metadata` MongoDB entity (per-product
+nutritional/allergen detail, imagery variants), reasoning that `products`/`menu items`' core
+fields would stay relational while that variable detail moved to MongoDB. ADR 0002 itself never
+named this entity — its own list of explicit MongoDB assignments
+(`audit records, order event history, delivery tracking history, analytics documents`) does not
+include it; it was this operationalization document's own Phase 1 extrapolation.
+
+Issue #181/#182 built the pizza product catalog and per-branch menu module, including allergens,
+toppings, and option groups/choices, entirely as relational PostgreSQL models
+(`apps/products/models/`, `apps/menu/models/`) — confirmed by this close-out audit finding zero
+MongoDB usage anywhere in `apps/products`, `apps/menu`, `apps/branches`, or `apps/restaurants`.
+None of that detail needed MongoDB's document flexibility in practice: allergens/toppings/options
+are a bounded, structured set with their own relational identity (shared across products, queried
+by join), not a free-form per-product document. The `flexible product metadata` row above has
+been removed rather than kept as an aspirational/unused entity, consistent with
+`docs/business/README.md`'s own close-out note on this Phase. A future phase may still introduce
+a genuinely document-shaped, per-product field (e.g. unstructured imagery variants) — if so, add
+it back here as a new row with its own concrete reasoning, not by reviving this one.
 
 ## Redis — hot data, never the source of truth
 
