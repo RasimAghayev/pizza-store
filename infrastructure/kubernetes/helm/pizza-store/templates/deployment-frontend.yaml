@@ -1,0 +1,62 @@
+# called by Service "nginx" (ingress.yaml / configmap-nginx.yaml's / location) -- see
+# frontend/Dockerfile / frontend/nginx.conf.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "pizza-store.selectorLabels" (dict "root" . "component" "frontend") | nindent 4 }}
+  ports:
+    - port: {{ .Values.ports.frontend }}
+      targetPort: {{ .Values.ports.frontend }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount.frontend }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "pizza-store.selectorLabels" (dict "root" . "component" "frontend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pizza-store.selectorLabels" (dict "root" . "component" "frontend") | nindent 8 }}
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.images.frontend.repository }}:{{ .Values.images.frontend.tag }}"
+          imagePullPolicy: {{ .Values.images.frontend.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.ports.frontend }}
+          # Derived from infrastructure/swarm/docker-stack.yml's
+          # `wget --spider http://localhost:8080/healthz` healthcheck.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.ports.frontend }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.ports.frontend }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.resources.frontend | nindent 12 }}

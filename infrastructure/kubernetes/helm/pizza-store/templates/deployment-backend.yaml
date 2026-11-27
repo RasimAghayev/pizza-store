@@ -1,0 +1,121 @@
+# called by Service "nginx" (ingress.yaml / configmap-nginx.yaml's /api/ location) -- see
+# backend/config/urls.py for the api/<version>/... mount. Calls postgres/redis/rabbitmq
+# Services below.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "pizza-store.selectorLabels" (dict "root" . "component" "backend") | nindent 4 }}
+  ports:
+    - port: {{ .Values.ports.backend }}
+      targetPort: {{ .Values.ports.backend }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount.backend }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "pizza-store.selectorLabels" (dict "root" . "component" "backend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pizza-store.selectorLabels" (dict "root" . "component" "backend") | nindent 8 }}
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.images.backend.repository }}:{{ .Values.images.backend.tag }}"
+          imagePullPolicy: {{ .Values.images.backend.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.ports.backend }}
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.secrets.postgresDb | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.secrets.postgresUser | quote }}
+            - name: POSTGRES_HOST
+              value: "postgres"
+            - name: POSTGRES_PORT
+              value: {{ .Values.ports.postgres | quote }}
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: {{ .Values.ports.redis | quote }}
+            - name: RABBITMQ_HOST
+              value: "rabbitmq"
+            - name: RABBITMQ_PORT
+              value: {{ .Values.ports.rabbitmq | quote }}
+            - name: RABBITMQ_USER
+              value: {{ .Values.secrets.rabbitmqUser | quote }}
+            - name: DJANGO_CORS_ALLOWED_ORIGINS
+              value: {{ .Values.djangoCorsAllowedOrigins | quote }}
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: DJANGO_SECRET_KEY
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: POSTGRES_PASSWORD
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: REDIS_PASSWORD
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: RABBITMQ_PASSWORD
+            - name: JWT_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: JWT_PRIVATE_KEY
+          # Derived from infrastructure/swarm/docker-stack.yml's
+          # `curl -f http://localhost:8000/health/` healthcheck -- see backend/health/urls.py.
+          # Real finding during kind validation: kubelet's httpGet probe sends the Pod IP as
+          # the Host header, not "localhost" -- Django's default ALLOWED_HOSTS
+          # (backend/config/settings.py, "localhost,127.0.0.1") then rejects it with 400,
+          # unlike curl's healthcheck above which naturally sends Host: localhost. Overriding
+          # the probe's Host header reproduces curl's exact behavior instead of loosening
+          # ALLOWED_HOSTS.
+          livenessProbe:
+            httpGet:
+              path: /health/
+              port: {{ .Values.ports.backend }}
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /health/
+              port: {{ .Values.ports.backend }}
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.resources.backend | nindent 12 }}

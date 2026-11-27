@@ -1,0 +1,24 @@
+# Assumes the ingress-nginx controller (the most widely deployed Ingress controller) is
+# already installed on the cluster -- a documented assumption, not a dependency this Task
+# installs (see docs/deployment/kubernetes.md's Prerequisites section).
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx
+                port:
+                  number: {{ .Values.ports.nginx }}
+{{- end }}
