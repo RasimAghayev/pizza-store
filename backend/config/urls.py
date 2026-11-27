@@ -2,6 +2,10 @@
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+# calls GET /api/v1/branches/<branch_id>/menu/ -- see
+# backend/apps/menu/api/views.py::BranchMenuView (Issue #182)
+from apps.menu.api.views import BranchMenuView
+
 # calls GET /api/v1/ping/ -- see backend/shared/api/views.py::PingView
 from shared.api.views import PingView
 
@@ -27,4 +31,15 @@ urlpatterns = [
     # calls GET/POST/PATCH/DELETE /api/v1/products/{,<id>/,toppings/...,allergens/...,
     # <id>/price-quote/} -- see backend/apps/products/api/views.py (Issue #181)
     path("api/<str:version>/products/", include("apps.products.api.urls")),
+    # Mounted under the branches/ prefix but owned by apps.menu, not apps.branches.api.urls
+    # (ADR 0004 dependency direction: menu depends on branches, never the reverse) -- see
+    # BranchMenuView above (Issue #182).
+    path(
+        "api/<str:version>/branches/<int:branch_id>/menu/",
+        BranchMenuView.as_view(),
+        name="branch-menu",
+    ),
+    # calls GET/POST/PATCH/DELETE /api/v1/menu/{categories,items}/... -- see
+    # backend/apps/menu/api/views.py (Issue #182)
+    path("api/<str:version>/menu/", include("apps.menu.api.urls")),
 ]
