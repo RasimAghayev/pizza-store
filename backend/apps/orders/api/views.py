@@ -77,7 +77,13 @@ class CheckoutView(IdempotentActionMixin, APIView):
             except AddressNotFoundError as exc:
                 raise exceptions.NotFound("Address not found.") from exc
             except BelowMinimumOrderAmountError as exc:
-                raise exceptions.ValidationError(str(exc)) from exc
+                # Generic, exception-independent message -- never forward str(exc) into a
+                # client-facing response (CodeQL py/stack-trace-exposure, CWE-209). The
+                # branch's minimum_order_amount is already public via GET /branches/<id>
+                # (apps/branches/api/serializers.py), so nothing is actually hidden here.
+                raise exceptions.ValidationError(
+                    "Order subtotal is below the branch's minimum order amount."
+                ) from exc
             return 201, OrderResponseSerializer(order).data
 
         return self.perform_idempotent(scope="orders.checkout", handler=handler)
