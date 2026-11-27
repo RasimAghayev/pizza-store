@@ -1,0 +1,76 @@
+# VPS deployment target override (Issue #157, ADR 0007) -- merged on top of docker-compose.yml,
+# never standalone: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`.
+# Carries only what is genuinely environment-specific and not what `profiles:` already
+# handles (see docker-compose.yml's `profiles: ["observability"]` services and
+# docs/deployment/vps.md's Architecture Requirements research) -- TLS-terminating Nginx and
+# certificate issuance/renewal. Per-service `mem_limit`/`cpus` already set on every service in
+# the base file are sized to fit ADR 0007's 4 vCPU/8 GB baseline comfortably (core services
+# alone: ~2.7 GB / 5.5 vCPU of soft limits -- Docker's `cpus` is a throttle, not a reservation,
+# so modest oversubscription across services that are rarely all under load simultaneously is
+# expected and fine); restating the same values again here under `deploy.resources.limits`
+# would be pure duplication with no behavior change, so this file does not re-declare them.
+
+services:
+  nginx:
+    # Replaces the base file's conf.d mount at the same container path (Compose merges
+    # `volumes:` entries by container mount path, not by list position) -- default.conf and
+    # prod.conf both declare `server_name _;` on port 8080 and must never load together.
+    volumes:
+      - ../nginx/conf.d.prod:/etc/nginx/conf.d:ro
+      - nginx-ssl:/etc/nginx/ssl:ro
+      - certbot-www:/var/www/certbot:ro
+    # Concatenates with the base file's "${NGINX_HTTP_PORT}:8080" (Compose appends `ports:`
+    # entries rather than replacing them) -- prod.conf's port 8080 server block now redirects
+    # to HTTPS instead of serving the app directly.
+    ports:
+      - "${NGINX_HTTPS_PORT}:8443"
+    # The base file's healthcheck hits plain HTTP on 8080, which prod.conf now redirects to
+    # HTTPS (301, no body) instead of serving /healthz directly -- that redirect makes the base
+    # check fail every time once this override is active, so it is replaced with one against
+    # the real TLS listener. --no-check-certificate is a deliberate, narrow exception: this is
+    # a liveness probe (is nginx answering), not a trust check, and the cert here may be a
+    # locally-trusted mkcert CA (test) or a real Let's Encrypt cert (production) either way.
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--no-check-certificate", "--spider", "https://localhost:8443/healthz"]
+
+  # Real Let's Encrypt issuance/renewal via the HTTP-01 webroot challenge (current certbot
+  # guidance for a Docker/reverse-proxy setup: --webroot keeps certbot from touching nginx's
+  # own config, unlike --nginx). Requires CERTBOT_DOMAIN to resolve publicly to this host's
+  # port 80 -- not true for the disposable local stand-in host this Task validates against
+  # (see docs/deployment/vps.md's SSL section), so this service is deliberately NOT started
+  # during that validation; it is a real deliverable for genuine VPS use, not exercised by
+  # this Task's own test evidence.
+  certbot:
+    image: certbot/certbot:v5.10.0
+    restart: unless-stopped
+    environment:
+      CERTBOT_DOMAIN: ${CERTBOT_DOMAIN}
+      CERTBOT_EMAIL: ${CERTBOT_EMAIL}
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+      - nginx-ssl:/etc/nginx/ssl
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        set -e;
+        if [ ! -d "/etc/letsencrypt/live/$$CERTBOT_DOMAIN" ]; then
+          certbot certonly --webroot -w /var/www/certbot -d "$$CERTBOT_DOMAIN"
+          --email "$$CERTBOT_EMAIL" --agree-tos --non-interactive ${CERTBOT_STAGING_FLAG};
+        fi;
+        cp "/etc/letsencrypt/live/$$CERTBOT_DOMAIN/fullchain.pem" /etc/nginx/ssl/fullchain.pem;
+        cp "/etc/letsencrypt/live/$$CERTBOT_DOMAIN/privkey.pem" /etc/nginx/ssl/privkey.pem;
+        chmod 644 /etc/nginx/ssl/fullchain.pem /etc/nginx/ssl/privkey.pem;
+        trap exit TERM;
+        while :; do
+          sleep 12h & wait $${!};
+          certbot renew --webroot -w /var/www/certbot --deploy-hook
+          "cp /etc/letsencrypt/live/$$CERTBOT_DOMAIN/fullchain.pem /etc/nginx/ssl/fullchain.pem &&
+          cp /etc/letsencrypt/live/$$CERTBOT_DOMAIN/privkey.pem /etc/nginx/ssl/privkey.pem &&
+          chmod 644 /etc/nginx/ssl/fullchain.pem /etc/nginx/ssl/privkey.pem";
+        done
+
+volumes:
+  nginx-ssl:
+  certbot-etc:
+  certbot-www:
