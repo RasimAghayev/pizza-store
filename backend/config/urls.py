@@ -18,4 +18,10 @@ urlpatterns = [
     # calls POST /api/v1/customers/register/ -- see
     # backend/apps/customers/api/views.py (Issue #176)
     path("api/<str:version>/customers/", include("apps.customers.api.urls")),
+    # calls GET/POST/PATCH/DELETE /api/v1/restaurants/{,<id>/,organizations/...} -- see
+    # backend/apps/restaurants/api/views.py (Issue #180)
+    path("api/<str:version>/restaurants/", include("apps.restaurants.api.urls")),
+    # calls GET/POST/PATCH/DELETE /api/v1/branches/{,<id>/,<id>/hours/,<id>/closures/} -- see
+    # backend/apps/branches/api/views.py (Issue #180)
+    path("api/<str:version>/branches/", include("apps.branches.api.urls")),
 ]

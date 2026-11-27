@@ -60,23 +60,51 @@ BRANCH_SCOPED_ROLES = frozenset(
 # Phase 10 Tasks (restaurants, branches, products, menu) append their own module's permissions
 # to the relevant roles' sets when those modules are built, rather than this file speculating
 # about permissions for modules that don't exist yet.
+#
+# restaurants.*/branches.* (Issue #180): "view" governs read access to the staff-only
+# Organization resource and to Restaurant/Branch when accessed through the authenticated
+# (not the public, AllowAny) path; "edit" governs create/update/delete, always re-scoped by
+# TwoStepPermission's step 2. Granted per real-world responsibility, not uniformly: an
+# org-scoped holder (ORGANIZATION_OWNER) can open new restaurants/branches under their own
+# org; a branch-scoped holder (RESTAURANT_MANAGER/BRANCH_MANAGER, per the existing
+# BRANCH_SCOPED_ROLES grouping above) can edit their own branch's operational fields but
+# can't create a new one -- TwoStepPermission's scope check on an unsaved instance naturally
+# denies branch-scoped creation attempts (no branch id yet to match), so this isn't enforced
+# by a separate rule. Every other branch-scoped staff role gets read-only branches.view -- they
+# need a branch's hours/capacity/location for their own work but don't manage it.
 ROLE_PERMISSIONS: dict[RoleCode, frozenset[str]] = {
     RoleCode.CUSTOMER: frozenset(),
     RoleCode.VERIFIED_CUSTOMER: frozenset(),
     RoleCode.LOYALTY_MEMBER: frozenset(),
-    RoleCode.SUPER_ADMIN: frozenset({"identity.manage_roles"}),
-    RoleCode.ORGANIZATION_OWNER: frozenset({"identity.manage_roles"}),
-    RoleCode.ACCOUNTANT: frozenset(),
-    RoleCode.MARKETING_MANAGER: frozenset(),
-    RoleCode.RESTAURANT_MANAGER: frozenset(),
-    RoleCode.BRANCH_MANAGER: frozenset(),
-    RoleCode.CASHIER: frozenset(),
-    RoleCode.KITCHEN_MANAGER: frozenset(),
-    RoleCode.KITCHEN_STAFF: frozenset(),
-    RoleCode.DELIVERY_MANAGER: frozenset(),
-    RoleCode.COURIER: frozenset(),
-    RoleCode.INVENTORY_MANAGER: frozenset(),
-    RoleCode.CUSTOMER_SUPPORT: frozenset(),
+    RoleCode.SUPER_ADMIN: frozenset(
+        {
+            "identity.manage_roles",
+            "restaurants.view",
+            "restaurants.edit",
+            "branches.view",
+            "branches.edit",
+        }
+    ),
+    RoleCode.ORGANIZATION_OWNER: frozenset(
+        {
+            "identity.manage_roles",
+            "restaurants.view",
+            "restaurants.edit",
+            "branches.view",
+            "branches.edit",
+        }
+    ),
+    RoleCode.ACCOUNTANT: frozenset({"restaurants.view", "branches.view"}),
+    RoleCode.MARKETING_MANAGER: frozenset({"restaurants.view", "branches.view"}),
+    RoleCode.RESTAURANT_MANAGER: frozenset({"restaurants.view", "branches.view", "branches.edit"}),
+    RoleCode.BRANCH_MANAGER: frozenset({"restaurants.view", "branches.view", "branches.edit"}),
+    RoleCode.CASHIER: frozenset({"branches.view"}),
+    RoleCode.KITCHEN_MANAGER: frozenset({"branches.view"}),
+    RoleCode.KITCHEN_STAFF: frozenset({"branches.view"}),
+    RoleCode.DELIVERY_MANAGER: frozenset({"branches.view"}),
+    RoleCode.COURIER: frozenset({"branches.view"}),
+    RoleCode.INVENTORY_MANAGER: frozenset({"branches.view"}),
+    RoleCode.CUSTOMER_SUPPORT: frozenset({"branches.view"}),
 }
 
 
