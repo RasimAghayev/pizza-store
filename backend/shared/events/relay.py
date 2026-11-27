@@ -60,6 +60,7 @@ def _publish_pending(
     model: type[AbstractOutboxEvent], *, publisher: ConfirmedPublisher, exchange: str, limit: int
 ) -> RelayResult:
     published = failed = 0
+    publisher.declare_exchange(exchange=exchange)
     with transaction.atomic():
         rows = list(
             model.objects.select_for_update(skip_locked=True)

@@ -10,12 +10,16 @@ topic exchanges named `<module>.events`.
 
 **Infrastructure status (2026-11-26, Issue #130):** the generic Transactional Outbox
 publisher and idempotent-consumer base classes now exist in `backend/shared/events/` and are
-proven against a real RabbitMQ broker. None of the eight exchanges or the nineteen events
-below have been created yet -- every row in the table is still a naming reservation, not a
-live exchange/queue. The first real module to publish one of these events (Phase 10+) is what
-actually creates its exchange and appends a true catalog entry; the test fixture event used
-to prove the Outbox/idempotent-consumer plumbing is deliberately not listed here, since it is
-not a real domain event.
+proven against a real RabbitMQ broker. Seven of the eight exchanges and eighteen of the
+nineteen events below are still naming reservations, not live exchanges/queues -- the first
+real module to publish one of these events is what actually creates its exchange and appends
+a true catalog entry; the test fixture event used to prove the Outbox/idempotent-consumer
+plumbing is deliberately not listed here, since it is not a real domain event.
+
+**Live (2026-11-27, Issue #176):** `CustomerRegistered` / `customers.events` /
+`customer.registered.v1` -- published by `apps.customers.services.registration_service
+.RegistrationService.register()` on every customer sign-up, proven end-to-end against a real
+RabbitMQ queue by `backend/apps/customers/tests/integration/test_customer_registered_event.py`.
 
 | Event | Owning module | Exchange | Routing key |
 |---|---|---|---|

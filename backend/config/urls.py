@@ -15,4 +15,7 @@ urlpatterns = [
     # calls POST /api/v1/auth/{login,refresh,logout} -- see
     # backend/apps/identity/api/views.py (Issue #129)
     path("api/<str:version>/auth/", include("apps.identity.api.urls")),
+    # calls POST /api/v1/customers/register/ -- see
+    # backend/apps/customers/api/views.py (Issue #176)
+    path("api/<str:version>/customers/", include("apps.customers.api.urls")),
 ]

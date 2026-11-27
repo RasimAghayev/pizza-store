@@ -55,6 +55,16 @@ class ConfirmedPublisher:
         if self._connection is not None:
             self._connection.close()
 
+    def declare_exchange(self, *, exchange: str) -> None:
+        """Idempotent -- safe to call before every publish. Exchange declaration is normally
+        the consumer's job (shared/events/consumer.py::declare_topology), but a module's
+        first published event has no consumer yet to have declared it first (ADR 0005's "the
+        first real module to publish one of these events... is what actually creates its
+        exchange")."""
+        if self._channel is None:
+            raise RuntimeError("declare_exchange() called outside the `with` block")
+        self._channel.exchange_declare(exchange=exchange, exchange_type="topic", durable=True)
+
     def publish(self, *, exchange: str, routing_key: str, body: bytes) -> None:
         if self._channel is None:
             raise RuntimeError("publish() called outside the `with` block")

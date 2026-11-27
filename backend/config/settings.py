@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "corsheaders",
     "apps.identity",
+    "apps.customers",
     "health",
     # Registered as an app (zero concrete models of its own) purely so Django's
     # management-command discovery finds shared/management/commands/relay_outbox.py
