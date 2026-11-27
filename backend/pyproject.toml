@@ -11,6 +11,7 @@ select = ["E", "F", "I", "W"]
 
 [tool.black]
 line-length = 100
+extend-exclude = "/migrations/"
 
 [tool.mypy]
 ignore_missing_imports = true

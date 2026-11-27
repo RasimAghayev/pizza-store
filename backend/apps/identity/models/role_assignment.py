@@ -10,7 +10,7 @@ class RoleAssignment(models.Model):
     forbids `identity` importing their models even once they do. Scope is always re-derived
     from the resource being acted on at permission-check time (see
     `shared/permissions/base.py::TwoStepPermission`), never trusted from these columns alone
-    for anything beyond "which scopes does this user hold.\""""
+    for anything beyond "which scopes does this user hold.\" """
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="role_assignments"

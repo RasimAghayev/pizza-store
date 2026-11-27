@@ -76,9 +76,7 @@ def test_refresh_carries_the_original_roles_and_scope_forward(client):
     RoleAssignmentService().assign(user=user, role_code=RoleCode.BRANCH_MANAGER, branch_id=7)
     login_body = _post(client, LOGIN_URL, {"email": user.email, "password": PASSWORD}).json()
 
-    refresh_body = _post(
-        client, REFRESH_URL, {"refresh_token": login_body["refresh_token"]}
-    ).json()
+    refresh_body = _post(client, REFRESH_URL, {"refresh_token": login_body["refresh_token"]}).json()
     claims = TokenService().verify_access_token(refresh_body["access_token"])
 
     assert claims["roles"] == [RoleCode.BRANCH_MANAGER.value]
