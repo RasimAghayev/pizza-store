@@ -56,7 +56,7 @@ current pricing before any real commitment.
 | DocumentDB | `db.t4g.medium`, 1 instance (non-prod default) | ~$55–70 (estimate; DocumentDB has no public per-vCPU rate as granular as RDS's) |
 | ElastiCache (Valkey) | `cache.t4g.micro`, 1 node (non-prod default) | ~$12 |
 | Amazon MQ (RabbitMQ) | `mq.m7g.large`, `SINGLE_INSTANCE` (non-prod default) | ~$200 (sourced: $0.2734/hr) |
-| Secrets Manager | 6 secrets (`secrets.tf`) | ~$2.40 ($0.40/secret/month) + API-call charges |
+| Secrets Manager | 6 secrets (4 explicit in `secrets.tf`, 2 from `manage_master_user_password = true` in `rds.tf`/`documentdb.tf`) | ~$2.40 ($0.40/secret/month) + API-call charges |
 | **Total (non-prod sizing)** | | **~$365–385/month**, dominated by Amazon MQ and DocumentDB |
 
 `prod` environment sizing (`var.environment == "prod"`) doubles RDS to Multi-AZ, DocumentDB to

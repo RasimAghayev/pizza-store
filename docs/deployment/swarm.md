@@ -167,6 +167,21 @@ parses the original file text, so the lossy round-trip never happens.
 every stateful service's `placement.constraints` requires it, and an unlabeled single-node
 Swarm will leave those tasks pending forever with no clearer error than "no suitable node".
 
+**`backend`/`nginx` stick at `0/2` replicas right after the first `docker stack deploy` and
+never recover on their own.** Real failure hit during the Issue #161 close-out re-validation
+(did not reproduce during Issue #158's original run): on a freshly created overlay network,
+Swarm's embedded DNS can take longer to converge than `backend`'s own startup — `backend`
+fails to resolve `postgres` (`failed to resolve host 'postgres'`), and Django's `runserver`
+exits **`0`** on that failure rather than crashing with a non-zero code. `restart_policy:
+condition: on-failure` only restarts a task on non-zero exit, so a `0`-exit task is never
+retried and the service sits at `0` replicas indefinitely — `nginx` then also fails to start,
+since it cannot resolve the now-permanently-absent `backend` upstream. Swarm has no
+Compose-style `depends_on: condition: service_healthy` to gate startup ordering, so this race
+is a standing possibility on every fresh deploy, not a one-off. Fix once seen: `docker service
+update --force pizza-store_backend` (and `pizza-store_nginx` if it is still failing) forces a
+new task after the overlay network has had time to converge; this is a manual recovery step,
+not a config change, since the race is inherently timing-dependent rather than deterministic.
+
 ## Validation evidence (2026-11-27)
 
 Real local single-node Swarm (`docker swarm init`), one manager node labeled
@@ -188,6 +203,15 @@ infrastructure/swarm/docker-stack.yml pizza-store`:
 - **Network isolation proven, not just declared**: from inside a running `nginx` task,
   `wget http://postgres:5432` failed with `bad address 'postgres:5432'` — a DNS-level failure
   confirming `nginx` has no route to `data-net` at all.
-- Clean teardown: `docker stack rm pizza-store` removed all 17 services, 9 secrets, 13
+- Clean teardown: `docker stack rm pizza-store` removed all 17 services, 9 secrets, 14
   configs, and 3 networks; `docker swarm leave --force` returned the local Docker daemon to
   `swarm=inactive`, the same state it was in before this validation — no state left behind.
+
+**Re-validation (Issue #161, Epic #12 close-out)**: re-ran this entire procedure fresh against
+`test`'s then-current tip, independent of this file's own claims above. Result: all 17
+services again reached full desired replica count, the rolling update and network-isolation
+proofs above reproduced identically, and teardown was again clean — with one new finding not
+seen during the original run, now documented under Troubleshooting above (`backend`/`nginx`
+stuck at `0/2` after a fresh-overlay-network DNS race, recovered with `docker service update
+--force`). No code or stack-file change was needed; this is an inherent Swarm timing property,
+not a regression.
