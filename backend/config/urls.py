@@ -42,4 +42,7 @@ urlpatterns = [
     # calls GET/POST/PATCH/DELETE /api/v1/menu/{categories,items}/... -- see
     # backend/apps/menu/api/views.py (Issue #182)
     path("api/<str:version>/menu/", include("apps.menu.api.urls")),
+    # calls GET/POST/DELETE /api/v1/cart/ and PATCH/DELETE /api/v1/cart/items/<id>/ -- see
+    # backend/apps/cart/api/views.py (Issue #196)
+    path("api/<str:version>/cart/", include("apps.cart.api.urls")),
 ]

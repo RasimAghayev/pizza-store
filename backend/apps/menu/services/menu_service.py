@@ -195,3 +195,24 @@ class MenuService:
                 at=moment,
             )
         ]
+
+    def is_orderable_now(self, *, branch_id: int, product_id: int, at: time | None = None) -> bool:
+        """Cross-module entry point for Issue #196's cart: is `product_id` actually on
+        `branch_id`'s menu and available right now -- `False` for a product with no
+        `MenuItem` row on this branch at all, not just an unavailable one. Called by
+        `apps.cart.services.cart_service.CartService.add_item` -- see
+        `backend/apps/cart/README.md`; `cart` never imports `apps.menu.models`/
+        `repositories` directly (ADR 0004)."""
+        moment = at if at is not None else timezone.localtime().time()
+        item = next(
+            (i for i in self._items.all_for_branch(branch_id) if i.product_id == product_id),
+            None,
+        )
+        if item is None:
+            return False
+        return is_available_at(
+            is_available=item.is_available,
+            available_from=item.available_from,
+            available_until=item.available_until,
+            at=moment,
+        )

@@ -10,6 +10,9 @@ class CustomerRepository:
     def get_by_user_id(self, user_id: int) -> Customer | None:
         return Customer.objects.filter(user_id=user_id).first()
 
+    def get_by_id(self, customer_id: int) -> Customer | None:
+        return Customer.objects.filter(pk=customer_id).first()
+
     def update(self, customer: Customer, **fields: object) -> Customer:
         for field, value in fields.items():
             setattr(customer, field, value)
