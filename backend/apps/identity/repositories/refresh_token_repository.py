@@ -17,6 +17,9 @@ class RefreshTokenRepository:
         expires_at: dt.datetime,
         device_label: str = "",
         ip_address: str | None = None,
+        roles_snapshot: list[str] | None = None,
+        organization_id: int | None = None,
+        branch_id: int | None = None,
     ) -> RefreshToken:
         return RefreshToken.objects.create(
             user=user,
@@ -25,6 +28,9 @@ class RefreshTokenRepository:
             expires_at=expires_at,
             device_label=device_label,
             ip_address=ip_address,
+            roles_snapshot=roles_snapshot or [],
+            organization_id=organization_id,
+            branch_id=branch_id,
         )
 
     def get_by_hash(self, token_hash: str) -> RefreshToken | None:

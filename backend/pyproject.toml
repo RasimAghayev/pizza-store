@@ -4,12 +4,14 @@ python_files = ["test_*.py", "*_test.py", "tests.py"]
 
 [tool.ruff]
 line-length = 100
+extend-exclude = ["**/migrations/*.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
 
 [tool.black]
 line-length = 100
+extend-exclude = "/migrations/"
 
 [tool.mypy]
 ignore_missing_imports = true

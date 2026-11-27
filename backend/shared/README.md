@@ -27,3 +27,12 @@ domain/business logic for a specific module (that belongs under `backend/apps/<m
     30s/2m/10m backoff schedule.
 - `api/` — the custom DRF exception handler and API-conventions-proof endpoint
   (Issue #128, Phase 6). See [docs/api/conventions.md](../../docs/api/conventions.md).
+- `permissions/` — `base.py::TwoStepPermission` (Issue #175, Phase 10), the reusable DRF
+  `BasePermission` every protected endpoint from here onward composes with: step one checks
+  `request.user.has_rbac_permission(permission)` (does the user hold *any* role granting this
+  permission at all); step two, in `has_object_permission`, re-queries
+  `request.user.role_assignments_granting(permission)` and checks whether one of those
+  assignments' `organization_id`/`branch_id` actually scopes the specific object being acted
+  on. Scope is always re-derived from the object, never trusted from JWT claims alone, so a
+  stale or ambiguous claim can't widen access. Calls only duck-typed methods on `request.user`
+  — no import of `apps.identity`, per this directory's own charter above.

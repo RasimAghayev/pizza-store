@@ -42,3 +42,27 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self) -> str:
         return self.email
+
+    def has_rbac_permission(self, permission: str) -> bool:
+        """Duck-typed contract `shared/permissions/base.py::TwoStepPermission` calls on
+        whatever `settings.AUTH_USER_MODEL` is, without importing this app (ADR 0004) --
+        step 1 of ADR 0006's two-step check: does any role this user holds grant `permission`,
+        in any scope."""
+        from apps.identity.domain.rbac import permissions_for
+
+        role_codes = self.role_assignments.values_list("role_code", flat=True)
+        return permission in permissions_for(list(role_codes))
+
+    def role_assignments_granting(self, permission: str) -> list:
+        """Step 2's input: every role assignment (with its own organization_id/branch_id) that
+        grants `permission` -- re-derived fresh on every call, deliberately not read from the
+        JWT claims, so a user holding the same permission at multiple branches is checked
+        against all of them, not a single collapsed scope (see
+        apps/identity/services/session_service.py::_claims_for)."""
+        from apps.identity.domain.rbac import permissions_for
+
+        return [
+            assignment
+            for assignment in self.role_assignments.all()
+            if permission in permissions_for([assignment.role_code])
+        ]
