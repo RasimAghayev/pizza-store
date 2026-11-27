@@ -14,6 +14,8 @@ class ProfileSerializer(serializers.Serializer):
     phone = serializers.CharField(allow_null=True)
     date_of_birth = serializers.DateField(allow_null=True)
     consent_personal_data_at = serializers.DateTimeField(allow_null=True)
+    email_verified_at = serializers.DateTimeField(allow_null=True)
+    phone_verified_at = serializers.DateTimeField(allow_null=True)
 
 
 class ProfileUpdateSerializer(StrictSerializer):
@@ -47,6 +49,14 @@ class AddressCreateSerializer(StrictSerializer):
         max_digits=9, decimal_places=6, required=False, allow_null=True, default=None
     )
     is_default = serializers.BooleanField(required=False, default=False)
+
+
+class EmailVerificationConfirmSerializer(StrictSerializer):
+    code = serializers.CharField(min_length=6, max_length=6)
+
+
+class PhoneVerificationConfirmSerializer(StrictSerializer):
+    code = serializers.CharField(min_length=6, max_length=6)
 
 
 class AddressUpdateSerializer(StrictSerializer):

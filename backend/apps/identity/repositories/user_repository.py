@@ -12,3 +12,7 @@ class UserRepository:
 
     def get_by_id(self, user_id: int) -> User | None:
         return User.objects.filter(pk=user_id, is_active=True).first()
+
+    def set_password(self, user: User, new_password: str) -> None:
+        user.set_password(new_password)
+        user.save(update_fields=["password"])

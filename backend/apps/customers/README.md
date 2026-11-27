@@ -57,4 +57,30 @@ id>}` out; a duplicate email returns the standard `validation_error` envelope
 (`IsAuthenticated`, scoped to `request.user`'s own `Customer` row), no RBAC scope needed since
 this isn't a staff/branch concern.
 
+`services/verification_service.py::VerificationService` (Issue #177) handles email/phone OTP
+verification: `request_email_verification`/`confirm_email_verification` and
+`request_phone_verification`/`confirm_phone_verification` generate a 6-digit code
+(`domain/otp.py`, pure domain logic, no Django import), store only its SHA-256 hash in the
+Redis cache keyed `otp:{purpose}:{user_id}` with a 5-minute TTL
+(`docs/database/redis-caching-and-ttl-policy.md`), and delete that key explicitly on successful
+confirmation so a code can never be replayed even within its TTL window. Requesting phone
+verification before a phone number exists on the customer's profile raises
+`PhoneNotOnFileError` (`400 validation_error`). Delivery goes through
+`services/notification_gateway.py::NotificationGateway` -- `LoggingNotificationGateway` is the
+only implementation until a real email/SMS provider is chosen as its own Task (architecture
+risk register's "Likely Technical Debt #2", mirroring the accepted precedent for the Payment
+Gateway Abstraction): email is real via Django's console backend
+(`shared/notifications/console_gateway.py`), SMS only logs. Once both `email_verified_at` and
+`phone_verified_at` (nullable `Customer` columns) are set, the customer is granted the
+`verified_customer` role via
+`identity.services.role_assignment_service.RoleAssignmentService.assign()` (idempotent --
+checked first via `roles_for()`), per Issue #177's dual-channel gating requirement.
+`api/` exposes `POST /api/v1/customers/verify/email/request/`,
+`POST /api/v1/customers/verify/email/confirm/`, `POST /api/v1/customers/verify/phone/request/`,
+and `POST /api/v1/customers/verify/phone/confirm/`, all `IsAuthenticated`, throttled via
+`shared/api/throttling.py::OtpRequestRateThrottle`/`OtpConfirmRateThrottle` (not
+`identity.api.throttling` -- that would be a `customers -> identity.api` cross-layer import,
+disallowed by ADR 0004; the throttle classes live in `shared/` precisely so both modules can
+use them without either importing the other's API layer).
+
 Publishes: `CustomerRegistered` (`customers.events` / `customer.registered.v1`).
