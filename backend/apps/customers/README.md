@@ -9,9 +9,9 @@ and saved addresses are Issue #179's job, not this one.
 `backend/apps/identity/README.md`'s "inbound calls" section; `identity.User`/credential
 creation is `identity`'s exclusive domain (ADR 0004), so this module never constructs a
 `User` row itself or imports `identity.models`/`repositories`. It then creates the `Customer`
-row, calls `identity.services.role_assignment_service.RoleAssignmentService.assign()` (Issue
-#175) to grant the `customer` role, and publishes `CustomerRegistered` -- all inside the same
-DB transaction, so the user/customer/role-assignment/event rows are all-or-nothing.
+row, calls `identity.services.role_assignment_service.RoleAssignmentService.assign()` (see
+Issue #175) to grant the `customer` role, and publishes `CustomerRegistered` -- all inside the
+same DB transaction, so the user/customer/role-assignment/event rows are all-or-nothing.
 
 `CustomerOutboxEvent` (`models/customer_outbox_event.py`) is this module's concrete
 `shared/events/outbox.py::AbstractOutboxEvent` subclass, relayed to the `customers.events`
