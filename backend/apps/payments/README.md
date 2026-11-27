@@ -12,9 +12,13 @@ behind a provider-agnostic gateway abstraction. `Payment` is one row per capture
   own Business Context, requires explicit human confirmation before any provider credential or
   provider-specific config is added to this repository -- never assume authorization to do
   that from this Task alone.
-- **Refunds** (`refund()` exists on every gateway here but has no caller yet) are Issue #200's
-  job.
-- **Wallet balance / store credit** is Issue #199's job.
+- **Refunds** (`refund()` exists on every gateway here but has no API caller yet) are Issue
+  #200's job.
+- **Wallet balance / store credit** was Issue #199's job -- see `backend/apps/wallet/README.md`.
+  It registers a third gateway, `WalletGateway`, into `domain/gateway_registry.py` at Django
+  startup via `register_gateway()`, without `apps.payments` ever importing `apps.wallet`
+  (ADR 0004 one-way dependency direction; see that README for the full
+  `AppConfig.ready()`-based registration mechanism).
 - **Multi-currency** does not exist anywhere else in this codebase (`Order`/`Branch`/`Product`
   all store a bare `Decimal`, no currency field) -- this Task fixes a single implicit
   `DEFAULT_CURRENCY = "USD"` (`services/payment_service.py`), documented there as revisit-if-
@@ -24,8 +28,8 @@ behind a provider-agnostic gateway abstraction. `Payment` is one row per capture
 ## Gateway abstraction design
 
 `domain/gateway.py` defines `PaymentGateway` (ABC): `authorize(amount, currency,
-payment_method_token, idempotency_key)`, `capture(authorization_id, amount)`,
-`refund(capture_id, amount)`, each returning a frozen result dataclass
+payment_method_token, idempotency_key, customer_id)`, `capture(authorization_id, amount)`,
+`refund(capture_id, amount, customer_id)`, each returning a frozen result dataclass
 (`AuthorizationResult`/`CaptureResult`/`RefundResult`) carrying `success`, a provider-side id,
 an opaque `provider_reference`, and an optional `failure_reason`.
 
@@ -54,6 +58,15 @@ that pure, Django-free domain logic belongs in `domain/`:
 
 `domain/gateway_registry.py::get_gateway(payment_method)` looks a gateway up by
 `PaymentMethod` value, raising `UnknownPaymentMethodError` for anything unregistered.
+`register_gateway(payment_method, gateway)` (added by Issue #199) lets another module add a
+gateway to this registry without this module ever importing that other module back -- its only
+caller today is `apps.wallet.apps.WalletConfig.ready()`.
+
+`customer_id` on `authorize()`/`refund()` was added by Issue #199: `WalletGateway` must know
+whose wallet to debit/credit, and no other value already flowing through
+`PaymentService.capture_for_order()` identified the customer to a gateway implementation.
+`CashOnDeliveryGateway`/`MockOnlineGateway` accept and ignore it, the same way they already
+ignored `payment_method_token` where it doesn't apply.
 
 ## Security Requirements
 

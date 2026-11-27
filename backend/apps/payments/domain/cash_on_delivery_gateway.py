@@ -23,6 +23,7 @@ class CashOnDeliveryGateway(PaymentGateway):
         currency: str,
         payment_method_token: str | None,
         idempotency_key: str,
+        customer_id: int,
     ) -> AuthorizationResult:
         return AuthorizationResult(
             success=True,
@@ -37,7 +38,7 @@ class CashOnDeliveryGateway(PaymentGateway):
             provider_reference="cash_on_delivery",
         )
 
-    def refund(self, *, capture_id: str, amount: Decimal) -> RefundResult:
+    def refund(self, *, capture_id: str, amount: Decimal, customer_id: int) -> RefundResult:
         return RefundResult(
             success=True,
             refund_id=f"cod_refund_{uuid.uuid4()}",

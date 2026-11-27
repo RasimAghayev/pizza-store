@@ -9,6 +9,7 @@ def test_authorize_succeeds_with_a_normal_token():
         currency="USD",
         payment_method_token="tok_visa",
         idempotency_key="k1",
+        customer_id=1,
     )
 
     assert result.success is True
@@ -22,6 +23,7 @@ def test_authorize_fails_with_the_decline_token():
         currency="USD",
         payment_method_token=DECLINE_TOKEN,
         idempotency_key="k2",
+        customer_id=1,
     )
 
     assert result.success is False
@@ -30,7 +32,11 @@ def test_authorize_fails_with_the_decline_token():
 
 def test_authorize_fails_with_no_token():
     result = MockOnlineGateway().authorize(
-        amount=Decimal("12.50"), currency="USD", payment_method_token=None, idempotency_key="k3"
+        amount=Decimal("12.50"),
+        currency="USD",
+        payment_method_token=None,
+        idempotency_key="k3",
+        customer_id=1,
     )
 
     assert result.success is False
@@ -45,7 +51,9 @@ def test_capture_succeeds_and_carries_the_authorization_id_as_its_provider_refer
 
 
 def test_refund_succeeds():
-    result = MockOnlineGateway().refund(capture_id="mock_capture_1", amount=Decimal("12.50"))
+    result = MockOnlineGateway().refund(
+        capture_id="mock_capture_1", amount=Decimal("12.50"), customer_id=1
+    )
 
     assert result.success is True
     assert result.refund_id

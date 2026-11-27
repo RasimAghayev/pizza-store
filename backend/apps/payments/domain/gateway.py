@@ -36,7 +36,13 @@ class PaymentGateway(ABC):
     implementation time per the research-before-implementing rule). Chosen so a later real
     provider only needs a new concrete class registered into `gateway_registry.py`, never a
     change to this interface or to `PaymentService`. `refund()` is implemented by every
-    gateway here but has no caller yet in this Task -- Issue #199 is the first real caller."""
+    gateway here but has no caller yet in this Task -- Issue #199 is the first real caller.
+
+    `customer_id` on `authorize()`/`refund()` was added by Issue #199: `WalletGateway` must
+    know whose `WalletAccount` to debit/credit, and no other value already flowing through
+    `PaymentService.capture_for_order()` identifies the customer to a gateway implementation.
+    `CashOnDeliveryGateway`/`MockOnlineGateway` accept and ignore it, the same way they already
+    ignore `payment_method_token` where it doesn't apply."""
 
     @abstractmethod
     def authorize(
@@ -46,10 +52,11 @@ class PaymentGateway(ABC):
         currency: str,
         payment_method_token: str | None,
         idempotency_key: str,
+        customer_id: int,
     ) -> AuthorizationResult: ...
 
     @abstractmethod
     def capture(self, *, authorization_id: str, amount: Decimal) -> CaptureResult: ...
 
     @abstractmethod
-    def refund(self, *, capture_id: str, amount: Decimal) -> RefundResult: ...
+    def refund(self, *, capture_id: str, amount: Decimal, customer_id: int) -> RefundResult: ...
