@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.branches",
     "apps.products",
     "apps.menu",
+    "apps.cart",
     "health",
     # Registered as an app for Django's management-command discovery
     # (shared/management/commands/relay_outbox.py, Issue #130) and, since Issue #195, for its
