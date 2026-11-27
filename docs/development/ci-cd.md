@@ -81,10 +81,11 @@ it reaches production).
   back to zero, re-applies it, and asserts `showmigrations` shows no unapplied migration.
   Proves the upgrade/downgrade mechanism itself ahead of Phase 6 adding real business-domain
   migrations on top of it.
-- `backend-frontend-integration`: guarded on `hashFiles('frontend/**')`. Still a placeholder
-  — migration checks are already covered by `migration-upgrade-downgrade` above, so this job
-  is reserved for real API integration tests against the live stack validated by
-  `compose-validate` (Phase 6, Epic #10) and Angular e2e smoke tests (Phase 7, Epic #11).
+- `backend-frontend-integration` ("Backend/frontend integration tests (Playwright auth E2E)"):
+  real since Phase 7 (Task #141, PR #147) — brings up its own full copy of the stack (same
+  12/5 healthy-vs-no-healthcheck split as `compose-validate` above), then runs the Playwright
+  auth E2E suite against it, independent of `compose-validate`'s own stack (which tears down
+  with `if: always()` before this job could reuse it).
 
 ## Container image scanning
 
@@ -133,18 +134,15 @@ that needs the latter, scoped only here, to upload SARIF results.
 
 - `analyze` matrix job: `github/codeql-action` `init` + `analyze` for `actions`, `python`, and
   `javascript-typescript`. `actions` (scans `.github/workflows/*.yml`) runs unconditionally —
-  it is also GitHub's own recommended default-setup language for this repository — and is the
-  one entry that is genuinely active today, against real content. `python` and
-  `javascript-typescript` are guarded per-language with `hashFiles('backend/**/*.py')` /
+  it is also GitHub's own recommended default-setup language for this repository. `python`
+  and `javascript-typescript` are guarded per-language with `hashFiles('backend/**/*.py')` /
   `hashFiles('frontend/**/*.ts')`: unlike the harmless echo placeholders elsewhere in this
   phase, CodeQL hard-errors ("CodeQL could not process any code written in \<language\>")
   rather than succeeding against an empty database when zero files of that language exist
-  anywhere in the repo — confirmed on a real CI run before this guard was added. Both
-  self-activate, no workflow edit needed, the moment Phase 6/7 add real source matching their
-  pattern; until then, Epic #7's "CodeQL code scanning is active" criterion is satisfied by
-  the `actions` language only, same deferral already true for the `python`/
-  `javascript-typescript` halves of `backend-quality`/`frontend-quality`/`bandit` elsewhere in
-  Phase 3.
+  anywhere in the repo — confirmed on a real CI run before this guard was added. All three
+  languages are genuinely active today against real content (Phase 6/7 added the backend/
+  frontend source that makes the `python`/`javascript-typescript` guards permanently true);
+  the guard itself is kept as-is since it is still correct, just no longer load-bearing.
 
 **`sast.yml` triggers:** `pull_request` targeting `test`. **Permissions:** `contents: read`.
 
@@ -160,18 +158,20 @@ that needs the latter, scoped only here, to upload SARIF results.
   `.github/dependabot.yml` missing a Dependabot `cooldown` period — fixed in the same change
   that added this workflow, same pattern as the linters Task #70 added catching real
   pre-existing issues.
-- `bandit` job: guarded on `hashFiles('backend/**')`, same placeholder pattern as the other
-  Phase 3 workflows. Inert until Phase 6 wires `bandit -r backend/`.
+- `bandit` job: real since Phase 5 (Task #108, ahead of Phase 6's real modules) — runs
+  unconditionally, no `hashFiles` guard. `bandit -r backend/ -x
+  "backend/*/tests/*,backend/.venv"`, with B101 (assert)/B105/B106 (hardcoded test fixture
+  passwords) findings expected and allowed in excluded test code.
 
 ## Dependency scanning and the Renovate `preview` flow
 
 **`dependency-scan.yml` triggers:** `pull_request` targeting `test` (every PR, regardless of
 head branch — same as `quality-gate.yml`). **Permissions:** `contents: read`.
 
-- `pip-audit` / `npm-audit`: guarded on `hashFiles('**/requirements*.txt') != '' ||
-  hashFiles('**/pyproject.toml') != ''` and `hashFiles('**/package.json') != ''`
-  respectively, same placeholder pattern as the other Phase 3 workflows. Inert until Phase 6
-  / Phase 7 add real Python/npm dependency manifests.
+- `pip-audit` / `npm-audit`: real since Phase 5 (Tasks #108/#109, ahead of Phase 6/7's real
+  apps) — both run unconditionally, no `hashFiles` guard. `pip-audit` scans
+  `backend/requirements*.txt`; `npm audit --omit=dev` scopes the frontend scan to runtime
+  dependencies only, since dev-tooling CVEs are tracked separately via Renovate/Dependabot.
 
 ### Real bug found: `preview` had never been synced since repository bootstrap
 
@@ -232,9 +232,12 @@ tier is about the commit now live on `main`, not a hypothetical merge result.
   `main`'s copy of the Compose file, as a final confirmation independent of whatever already
   ran on the `test -> main` PR itself.
 - `deploy-readiness`: guarded on `hashFiles('backend/Dockerfile') != '' ||
-  hashFiles('frontend/**/Dockerfile') != ''`, same placeholder pattern as the other Phase 3
-  workflows. Inert until Phase 8 (Deployment Infrastructure) adds a real Dockerfile; will wire
-  versioned image build/push and a staging smoke test at that point.
+  hashFiles('frontend/**/Dockerfile') != ''`. Both Dockerfiles now exist (Phase 6/7), so the
+  guard is permanently true — but it still only echoes a message; no Phase 8 Task (#157-#161)
+  ever scoped a real versioned image build/push step here. Phase 8 validated the VPS/Swarm/
+  Kubernetes/Terraform deployment targets directly instead (`docs/deployment/`,
+  `docs/cloud/`); this job is a deliberately out-of-scope placeholder, not a forgotten TODO —
+  confirmed during the Issue #167 Phase 9 Gate audit.
 
 ## Secret scanning (three independent layers)
 

@@ -11,7 +11,7 @@
       "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
       "options": {
         "mode": "markdown",
-        "content": "No business metrics exist yet — the backend (Phase 6) and frontend (Phase 7) have not been built. This dashboard is a placeholder reserving the panel layout for order throughput, revenue, and delivery-time metrics once those modules emit them."
+        "content": "No business metrics exist yet — Phase 6/7 (backend/frontend foundation) are built, but no order/revenue/delivery domain code exists until Phase 10+ (Core Business onward). This dashboard is a placeholder reserving the panel layout for order throughput, revenue, and delivery-time metrics once those modules emit them."
       }
     }
   ]

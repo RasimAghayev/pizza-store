@@ -30,8 +30,10 @@ jobs:
           # (confirmed via GET /repos/.../code-scanning/default-setup), so it runs
           # unconditionally. CodeQL hard-errors ("could not process any code written in
           # <language>") rather than succeeding on an empty database, so python/
-          # javascript-typescript — no backend/frontend source exists yet — are guarded and
-          # self-activate once Phase 6/7 add real source matching their pattern below.
+          # javascript-typescript are guarded on hashFiles(matrix.pattern) -- added back when
+          # no backend/frontend source existed yet; both patterns now match real code (Phase
+          # 6/7), so the guard is permanently true in practice today, kept only because it is
+          # harmless and still correct if a language's source were ever removed.
           - language: actions
             pattern: ".github/workflows/**"
           - language: python

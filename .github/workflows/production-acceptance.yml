@@ -94,7 +94,11 @@ jobs:
     needs: compose-acceptance
     steps:
       # job-level `if` can't call hashFiles(); the guard lives on the step instead.
-      # Inert until Phase 8 (Deployment Infrastructure) adds a backend/frontend Dockerfile.
+      # Both Dockerfiles now exist (Phase 6/7), so this guard is permanently true -- but no
+      # Phase 8 (Deployment Infrastructure, Issues #157-#161) Task ever scoped a versioned
+      # image build/push step here. Phase 8 validated VPS/Swarm/Kubernetes/Terraform targets
+      # directly instead (see docs/deployment/, docs/cloud/); this job remains a deliberate,
+      # out-of-scope placeholder, not a forgotten TODO.
       - name: Placeholder (active once a deployment Dockerfile exists)
         if: ${{ hashFiles('backend/Dockerfile') != '' || hashFiles('frontend/**/Dockerfile') != '' }}
         run: |
