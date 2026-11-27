@@ -154,6 +154,18 @@ CVE-2025-49796
 CVE-2026-6732
 CVE-2026-86144
 
+# libxml2, newly disclosed since the 2026-11-26 baseline above -- Affects: postgres:16-alpine
+# (Alpine 3.24.4 base, installed libxml2 2.13.9-r2; fixed upstream in 2.13.9-r4/r5, not yet
+# in a republished postgres:16-alpine build as of this re-check during Issue #161's close-out
+# re-validation). Confirmed via `trivy image --severity CRITICAL,HIGH postgres:16-alpine`
+# against the live floating `:16-alpine` tag, not a stale local pin.
+CVE-2026-11979
+CVE-2026-86138
+CVE-2026-86139
+CVE-2026-86140
+CVE-2026-86142
+CVE-2026-86143
+
 # curl/libcurl -- Affects: nginxinc/nginx-unprivileged:1.27-alpine
 CVE-2026-5773
 CVE-2026-6276
