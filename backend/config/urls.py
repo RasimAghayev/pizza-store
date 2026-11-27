@@ -48,4 +48,6 @@ urlpatterns = [
     # calls POST /api/v1/orders/checkout/, GET /api/v1/orders/, GET /api/v1/orders/<id>/ --
     # see backend/apps/orders/api/views.py (Issue #197)
     path("api/<str:version>/orders/", include("apps.orders.api.urls")),
+    # calls POST /api/v1/payments/ -- see backend/apps/payments/api/views.py (Issue #198)
+    path("api/<str:version>/payments/", include("apps.payments.api.urls")),
 ]
