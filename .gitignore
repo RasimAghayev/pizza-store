@@ -49,3 +49,13 @@ Thumbs.db
 # Build artifacts
 coverage/
 build/
+
+# Terraform (Issue #160) -- local plan/state artifacts and real variable files, never
+# committed; the AWS skeleton is validated-only (no backend configured, nothing applied)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
