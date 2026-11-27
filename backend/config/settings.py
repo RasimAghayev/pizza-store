@@ -117,6 +117,14 @@ REST_FRAMEWORK = {
         "login": "10/min",
         "login_account": "5/min",
         "refresh": "30/min",
+        # DRF's rate-string parser only resolves whole second/minute/hour/day windows (its
+        # SimpleRateThrottle.parse_rate reads just period[0]) -- a literal "3/10min" per the
+        # Issue's own example text is unparseable. Approximated to an hourly window
+        # preserving the same request density (Issue #177, ADR 0006).
+        "otp_request": "18/hour",
+        "otp_confirm": "30/hour",
+        "password_reset_request": "18/hour",  # nosec B105 -- rate string, not a password
+        "password_reset_confirm": "30/hour",  # nosec B105 -- rate string, not a password
     },
 }
 
@@ -179,6 +187,13 @@ JWT_PRIVATE_KEY_PEM = _read_secret("jwt_private_key")
 # JWT_PRIVATE_KEY_PEM above. Generated via scripts/generate-field-encryption-key.py; see
 # docs/security/secret-management.md.
 FIELD_ENCRYPTION_KEY = _read_secret("field_encryption_key")
+
+# No real email/SMS provider has been chosen yet (architecture risk register's "Likely
+# Technical Debt #2") -- Issue #177 deliberately implements OTP/password-reset delivery
+# against Django's own console backend only; a real provider is a separate, later Task. See
+# shared/notifications/console_gateway.py.
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "no-reply@pizza-store.example"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

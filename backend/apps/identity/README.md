@@ -34,12 +34,35 @@ modules (restaurants/branches/products/menu, Phase 10) use against it — it cal
 `UserRepository`, `RefreshTokenRepository`, and `RoleAssignmentRepository` are the only files
 in this module allowed to issue an ORM query, per ADR 0004.
 
+`services/password_recovery_service.py::PasswordRecoveryService` (Issue #177) owns password
+reset -- it stays in `identity`, not `customers`, since resetting a credential is identity's
+own domain and needs no customer-profile concept. `request_reset(email)` is a silent no-op for
+an unknown email (account-enumeration defense: the view returns the same generic `200`
+response either way); on a known email it generates an opaque token, stores only its SHA-256
+hash in the Redis cache keyed `pwreset:{token_hash}` with a 30-minute TTL
+(`docs/database/redis-caching-and-ttl-policy.md`), and emails it via
+`shared/notifications/console_gateway.py` directly -- never through
+`apps.customers.services.notification_gateway.NotificationGateway`, which would be a backwards
+`identity -> customers` call (ADR 0004: `customers` depends on `identity`, never the reverse).
+`confirm_reset(token, new_password)` validates and deletes that cache entry (single-use even
+within the TTL window), sets the new password via the new `UserRepository.set_password`, and
+calls the new `TokenService.revoke_all_for_user`/`RefreshTokenRepository.revoke_all_for_user`
+to kill every one of that user's existing refresh-token families -- the same
+stolen-token-response machinery `TokenService.rotate_refresh_token` uses (ADR 0006), reused
+here so a password reset invalidates every existing session, not just the one tied to whichever
+refresh token happens to be presented next. `services/user_lookup_service.py::UserLookupService`
+(`get_by_id`, raising `UserNotFoundError`) is the sanctioned read-only entry point
+`apps.customers.services.verification_service.VerificationService` (Issue #177) uses instead of
+importing `identity.models`/`repositories` directly, per ADR 0004.
+
 `api/` exposes three endpoints — `POST /api/v1/auth/{login,refresh,logout}` — documented in
 full in `docs/api/conventions.md` (client-type header, CSRF scoping, rate limits, the
 `SameSite=Strict`/CORS caveat). `backend/apps/identity/tests/integration/test_auth.py`
 covers: an issued access token verifies against the signing key and a hashed refresh token
 is persisted; refresh rotates the token and the old one is rejected; reusing an
 already-rotated token revokes the whole token family (stolen-token detection); and the
-per-account login throttle rejects the request past its limit.
+per-account login throttle rejects the request past its limit. `POST
+/api/v1/auth/password-reset/{request,confirm}/` (Issue #177) are documented alongside the rate
+limits above in `docs/api/conventions.md`.
 
 Publishes: none.

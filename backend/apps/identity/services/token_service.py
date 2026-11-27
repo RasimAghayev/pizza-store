@@ -141,6 +141,12 @@ class TokenService:
         if record is not None:
             self._refresh_token_repository.revoke_family(record)
 
+    def revoke_all_for_user(self, user_id: int) -> None:
+        """calls apps.identity.services.password_recovery_service.PasswordRecoveryService
+        .confirm_reset() -- a password reset revokes every existing session, not just one
+        token family (Issue #177, ADR 0006)."""
+        self._refresh_token_repository.revoke_all_for_user(user_id)
+
     @staticmethod
     def _hash(raw_token: str) -> str:
         return hashlib.sha256(raw_token.encode()).hexdigest()

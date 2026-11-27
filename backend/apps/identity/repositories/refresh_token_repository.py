@@ -53,6 +53,16 @@ class RefreshTokenRepository:
                 node.revoked_at = now
                 node.save(update_fields=["revoked_at"])
 
+    def revoke_all_for_user(self, user_id: int) -> None:
+        """Password-reset session-kill (Issue #177, ADR 0006's stolen-token-style response)
+        -- bulk-revokes every one of this user's non-revoked tokens regardless of family
+        chain, unlike revoke_family above which only walks one chain. A password reset must
+        kill every existing session, not just the one tied to whichever token happens to be
+        presented."""
+        RefreshToken.objects.filter(user_id=user_id, revoked_at__isnull=True).update(
+            revoked_at=timezone.now()
+        )
+
     def _family(self, record: RefreshToken) -> list[RefreshToken]:
         chain = {record.pk: record}
 

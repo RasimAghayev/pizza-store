@@ -111,14 +111,30 @@ requests, `shared/api/csrf.py::enforce_csrf` is called explicitly to re-enable t
 Redis-backed (`django_redis`, `CACHES["default"]`), via DRF's `ScopedRateThrottle`/
 `SimpleRateThrottle` (`backend/apps/identity/api/throttling.py`):
 
-| Scope          | Rate   | Keyed by                          | Applies to      |
-|----------------|--------|------------------------------------|-----------------|
-| `login`        | 10/min | client IP                          | `POST /login/`  |
-| `login_account`| 5/min  | submitted email (independent of IP)| `POST /login/`  |
-| `refresh`      | 30/min | client IP                          | `POST /refresh/`|
+| Scope                     | Rate    | Keyed by                            | Applies to                          |
+|----------------------------|---------|--------------------------------------|--------------------------------------|
+| `login`                    | 10/min  | client IP                            | `POST /login/`                       |
+| `login_account`            | 5/min   | submitted email (independent of IP)  | `POST /login/`                       |
+| `refresh`                  | 30/min  | client IP                            | `POST /refresh/`                     |
+| `otp_request`              | 18/hour | client IP                            | `POST /customers/verify/{email,phone}/request/` |
+| `otp_confirm`              | 30/hour | client IP                            | `POST /customers/verify/{email,phone}/confirm/` |
+| `password_reset_request`   | 18/hour | submitted email (independent of IP)  | `POST /auth/password-reset/request/` |
+| `password_reset_confirm`   | 30/hour | client IP                            | `POST /auth/password-reset/confirm/` |
 
 `login_account` exists alongside the per-IP `login` throttle specifically to cap credential
 stuffing against one account even when attempts are spread across many source IPs.
+
+### `otp_*` / `password_reset_*` rate approximation (Issue #177)
+
+DRF's `SimpleRateThrottle.parse_rate()` only resolves whole second/minute/hour/day windows —
+it reads just `period[0]`, so a literal `"3/10min"`-style rate (as a strict reading of the
+Issue's suggested limits would imply) is not a valid DRF rate string. The rates above
+approximate the same request density using the nearest whole-hour window instead of silently
+picking different numbers. `otp_request`/`password_reset_request` use
+`shared/api/throttling.py::OtpRequestRateThrottle`/
+`backend/apps/identity/api/throttling.py::PasswordResetRequestRateThrottle`; the OTP throttle
+classes live in `shared/`, not `identity/api/`, so that `apps.customers.api.views` can use them
+without importing `identity`'s API layer directly (ADR 0004).
 
 ### `SameSite=Strict` vs. cross-origin CORS — resolved for `customer-web` (Issue #140)
 

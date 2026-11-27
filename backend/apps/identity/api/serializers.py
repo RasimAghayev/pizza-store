@@ -13,3 +13,12 @@ class RefreshSerializer(StrictSerializer):
     send it as the httpOnly refresh cookie instead; see views.py's _read_refresh_token."""
 
     refresh_token = serializers.CharField(required=False, allow_blank=False)
+
+
+class PasswordResetRequestSerializer(StrictSerializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(StrictSerializer):
+    token = serializers.CharField(trim_whitespace=False)
+    new_password = serializers.CharField(trim_whitespace=False)

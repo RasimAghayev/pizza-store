@@ -8,6 +8,8 @@ from apps.customers.api.serializers import (
     AddressSerializer,
     AddressUpdateSerializer,
     CustomerRegistrationSerializer,
+    EmailVerificationConfirmSerializer,
+    PhoneVerificationConfirmSerializer,
     ProfileSerializer,
     ProfileUpdateSerializer,
 )
@@ -21,6 +23,12 @@ from apps.customers.services.registration_service import (
     EmailAlreadyRegisteredError,
     RegistrationService,
 )
+from apps.customers.services.verification_service import (
+    InvalidOtpError,
+    PhoneNotOnFileError,
+    VerificationService,
+)
+from shared.api.throttling import OtpConfirmRateThrottle, OtpRequestRateThrottle
 
 
 class CustomerRegistrationView(APIView):
@@ -90,6 +98,86 @@ class ProfileConsentView(APIView):
             customer = ProfileService().record_consent(request.user.pk)
         except CustomerNotFoundError as exc:
             raise exceptions.NotFound("Customer profile not found.") from exc
+        return Response(ProfileSerializer(customer).data)
+
+
+class EmailVerificationRequestView(APIView):
+    """calls VerificationService.request_email_verification() -- see
+    apps/customers/services/verification_service.py."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [OtpRequestRateThrottle]
+
+    def post(self, request, version):
+        try:
+            VerificationService().request_email_verification(request.user.pk)
+        except CustomerNotFoundError as exc:
+            raise exceptions.NotFound("Customer profile not found.") from exc
+        return Response({"message": "Verification code sent."})
+
+
+class EmailVerificationConfirmView(APIView):
+    """calls VerificationService.confirm_email_verification() -- see
+    apps/customers/services/verification_service.py."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [OtpConfirmRateThrottle]
+
+    def post(self, request, version):
+        serializer = EmailVerificationConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            customer = VerificationService().confirm_email_verification(
+                request.user.pk, serializer.validated_data["code"]
+            )
+        except CustomerNotFoundError as exc:
+            raise exceptions.NotFound("Customer profile not found.") from exc
+        except InvalidOtpError as exc:
+            raise exceptions.ValidationError(
+                {"code": "Invalid or expired verification code."}
+            ) from exc
+        return Response(ProfileSerializer(customer).data)
+
+
+class PhoneVerificationRequestView(APIView):
+    """calls VerificationService.request_phone_verification() -- see
+    apps/customers/services/verification_service.py."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [OtpRequestRateThrottle]
+
+    def post(self, request, version):
+        try:
+            VerificationService().request_phone_verification(request.user.pk)
+        except CustomerNotFoundError as exc:
+            raise exceptions.NotFound("Customer profile not found.") from exc
+        except PhoneNotOnFileError as exc:
+            raise exceptions.ValidationError(
+                {"phone": "No phone number on file. Add one to your profile first."}
+            ) from exc
+        return Response({"message": "Verification code sent."})
+
+
+class PhoneVerificationConfirmView(APIView):
+    """calls VerificationService.confirm_phone_verification() -- see
+    apps/customers/services/verification_service.py."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [OtpConfirmRateThrottle]
+
+    def post(self, request, version):
+        serializer = PhoneVerificationConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            customer = VerificationService().confirm_phone_verification(
+                request.user.pk, serializer.validated_data["code"]
+            )
+        except CustomerNotFoundError as exc:
+            raise exceptions.NotFound("Customer profile not found.") from exc
+        except InvalidOtpError as exc:
+            raise exceptions.ValidationError(
+                {"code": "Invalid or expired verification code."}
+            ) from exc
         return Response(ProfileSerializer(customer).data)
 
 

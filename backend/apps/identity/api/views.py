@@ -4,11 +4,22 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.identity.api.serializers import LoginSerializer, RefreshSerializer
+from apps.identity.api.serializers import (
+    LoginSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    RefreshSerializer,
+)
 from apps.identity.api.throttling import (
     LoginAccountRateThrottle,
     LoginRateThrottle,
+    PasswordResetConfirmRateThrottle,
+    PasswordResetRequestRateThrottle,
     RefreshRateThrottle,
+)
+from apps.identity.services.password_recovery_service import (
+    InvalidResetTokenError,
+    PasswordRecoveryService,
 )
 from apps.identity.services.session_service import InvalidCredentialsError, SessionService
 from apps.identity.services.token_service import (
@@ -201,3 +212,43 @@ class LogoutView(APIView):
         if client_type == "browser":
             _clear_auth_cookies(response, version=version)
         return response
+
+
+class PasswordResetRequestView(APIView):
+    """calls PasswordRecoveryService.request_reset() -- see
+    apps/identity/services/password_recovery_service.py."""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetRequestRateThrottle]
+
+    def post(self, request, version):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        PasswordRecoveryService().request_reset(serializer.validated_data["email"])
+        # Always the same generic response regardless of whether the email is registered --
+        # see PasswordRecoveryService.request_reset's own account-enumeration rationale.
+        return Response({"message": "If that email is registered, a reset link has been sent."})
+
+
+class PasswordResetConfirmView(_ReturnsAuthenticationFailedAs401, APIView):
+    """calls PasswordRecoveryService.confirm_reset() -- see
+    apps/identity/services/password_recovery_service.py."""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetConfirmRateThrottle]
+
+    def post(self, request, version):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            PasswordRecoveryService().confirm_reset(
+                token=serializer.validated_data["token"],
+                new_password=serializer.validated_data["new_password"],
+            )
+        except InvalidResetTokenError as exc:
+            # Generic, exception-independent message -- never forward str(exc) into a
+            # client-facing response (CodeQL py/stack-trace-exposure, CWE-209).
+            raise exceptions.AuthenticationFailed("Invalid or expired reset token.") from exc
+        return Response({"message": "Password has been reset."})

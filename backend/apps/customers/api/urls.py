@@ -4,6 +4,10 @@ from apps.customers.api.views import (
     AddressDetailView,
     AddressListCreateView,
     CustomerRegistrationView,
+    EmailVerificationConfirmView,
+    EmailVerificationRequestView,
+    PhoneVerificationConfirmView,
+    PhoneVerificationRequestView,
     ProfileConsentView,
     ProfileView,
 )
@@ -17,5 +21,25 @@ urlpatterns = [
         "me/addresses/<int:pk>/",
         AddressDetailView.as_view(),
         name="customer-address-detail",
+    ),
+    path(
+        "verify/email/request/",
+        EmailVerificationRequestView.as_view(),
+        name="customer-verify-email-request",
+    ),
+    path(
+        "verify/email/confirm/",
+        EmailVerificationConfirmView.as_view(),
+        name="customer-verify-email-confirm",
+    ),
+    path(
+        "verify/phone/request/",
+        PhoneVerificationRequestView.as_view(),
+        name="customer-verify-phone-request",
+    ),
+    path(
+        "verify/phone/confirm/",
+        PhoneVerificationConfirmView.as_view(),
+        name="customer-verify-phone-confirm",
     ),
 ]

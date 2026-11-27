@@ -20,6 +20,11 @@ class Customer(models.Model):
     last_name = models.CharField(max_length=100, blank=True, default="")
     phone = EncryptedCharField(null=True, blank=True)
     date_of_birth = EncryptedDateField(null=True, blank=True)
+    # Set by services/verification_service.py::VerificationService on a successful OTP
+    # confirmation (Issue #177) -- plaintext timestamps, not encrypted: a verification time
+    # carries none of the sensitivity that justifies phone/date_of_birth's encryption.
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    phone_verified_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         app_label = "customers"
