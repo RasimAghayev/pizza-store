@@ -52,8 +52,8 @@ ADR 0004.
 `api/` exposes `POST /api/v1/customers/register/` -- email/password in, `201 {"id": <customer
 id>}` out; a duplicate email returns the standard `validation_error` envelope
 (`docs/api/conventions.md`), not a 500. Also `GET/PATCH /api/v1/customers/me/profile/`,
-`POST /api/v1/customers/me/profile/consent/`, and `GET/POST /api/v1/customers/me/addresses/`
-+ `GET/PATCH/DELETE /api/v1/customers/me/addresses/<id>/` -- all ownership-only
+`POST /api/v1/customers/me/profile/consent/`, `GET/POST /api/v1/customers/me/addresses/`, and
+`GET/PATCH/DELETE /api/v1/customers/me/addresses/<id>/` -- all ownership-only
 (`IsAuthenticated`, scoped to `request.user`'s own `Customer` row), no RBAC scope needed since
 this isn't a staff/branch concern.
 
