@@ -242,11 +242,21 @@ SOCIALACCOUNT_EMAIL_AUTHENTICATION = False
 # DJANGO_CORS_ALLOWED_ORIGINS above).
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
-        "APPS": [{"client_id": os.environ.get("GOOGLE_OAUTH_CLIENT_ID", ""), "secret": ""}],
+        # "secret": "" is a required-but-unused dict key for an ID-token-only provider, not
+        # a credential -- Bandit's B105 heuristic flags any dict key literally named
+        # "secret"/"password"/etc. regardless of value, same false-positive pattern already
+        # documented for the throttle rate strings above.
+        "APPS": [
+            {"client_id": os.environ.get("GOOGLE_OAUTH_CLIENT_ID", ""), "secret": ""}  # nosec B105
+        ],
     },
     "apple": {
         "APPS": [
-            {"client_id": os.environ.get("APPLE_OAUTH_CLIENT_ID", ""), "secret": "", "key": ""}
+            {
+                "client_id": os.environ.get("APPLE_OAUTH_CLIENT_ID", ""),
+                "secret": "",  # nosec B105 -- required-but-unused key, not a credential; see google above
+                "key": "",
+            }
         ],
     },
     "facebook": {
