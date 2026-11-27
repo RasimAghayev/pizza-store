@@ -8,3 +8,10 @@ PyJWT==2.15.1
 django-cors-headers==4.9.0
 django-redis==7.0.0
 pika==1.5.0
+django-allauth==65.23.0
+# django-allauth's socialaccount providers lazily `import requests` for their provider HTTP
+# calls (e.g. Facebook's Graph API /debug_token) but do not declare it as an install
+# dependency -- confirmed via `pip show django-allauth` (Requires: asgiref, Django only) --
+# so it must be pinned explicitly here or a fresh `pip install -r requirements.txt` would
+# ImportError the first time a social login endpoint is actually hit.
+requests==2.34.2

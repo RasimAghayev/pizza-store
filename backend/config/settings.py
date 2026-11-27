@@ -24,6 +24,22 @@ ALLOWED_HOSTS = [
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",
+    # Required by django-allauth regardless of SITE_ID ever being referenced by this
+    # project's own code (Issue #178) -- allauth's SocialApp/provider lookups assume the
+    # sites framework is installed. django.contrib.sessions is likewise required by
+    # allauth's non-headless login flow (perform_login() -> django.contrib.auth.login()
+    # needs a request.session) -- deliberately NOT paired with SessionMiddleware in
+    # MIDDLEWARE below, since apps/identity/services/social_login_service.py only ever
+    # attaches a throwaway, never-persisted session to a disposable request object, never
+    # to the real client request -- so no sessionid cookie can ever reach a real response.
+    "django.contrib.sites",
+    "django.contrib.sessions",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.apple",
+    "allauth.socialaccount.providers.facebook",
     "rest_framework",
     "drf_spectacular",
     "corsheaders",
@@ -40,6 +56,8 @@ INSTALLED_APPS = [
     "shared",
 ]
 
+SITE_ID = 1
+
 # identity.User (Issue #127) replaces Django's default auth.User -- see
 # backend/apps/identity/models/user.py.
 AUTH_USER_MODEL = "identity.User"
@@ -55,6 +73,14 @@ MIDDLEWARE = [
     # Must run before CommonMiddleware per django-cors-headers' own setup docs.
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # Required unconditionally by allauth.account's AppConfig.ready() (Issue #178) even
+    # though this project never mounts allauth's own URLs/views -- harmless for every real
+    # request: it only sets request.allauth = SimpleNamespace() and a context-local, and its
+    # one redirect behavior (_should_redirect_accounts) short-circuits via NoReverseMatch
+    # since no "account_login"/"account_email" URL name exists in this project's urlconf.
+    # No django.contrib.sessions.middleware.SessionMiddleware is added alongside it --
+    # confirmed unnecessary by reading the middleware's own source, not assumed.
+    "allauth.account.middleware.AccountMiddleware",
     # DRF's APIView exempts every view from this middleware's own enforcement
     # (rest_framework.views.APIView.as_view wraps every view in csrf_exempt); kept in
     # MIDDLEWARE so it still sets the CSRF cookie on responses that call
@@ -117,6 +143,7 @@ REST_FRAMEWORK = {
         "login": "10/min",
         "login_account": "5/min",
         "refresh": "30/min",
+        "social_login": "10/min",
         # DRF's rate-string parser only resolves whole second/minute/hour/day windows (its
         # SimpleRateThrottle.parse_rate reads just period[0]) -- a literal "3/10min" per the
         # Issue's own example text is unparseable. Approximated to an hourly window
@@ -187,6 +214,52 @@ JWT_PRIVATE_KEY_PEM = _read_secret("jwt_private_key")
 # JWT_PRIVATE_KEY_PEM above. Generated via scripts/generate-field-encryption-key.py; see
 # docs/security/secret-management.md.
 FIELD_ENCRYPTION_KEY = _read_secret("field_encryption_key")
+
+# Social login (Issue #178): django-allauth is used only for the provider handshake and
+# SocialAccount-to-identity.User linking -- its own session/signup/email-confirmation
+# machinery is never exposed (no allauth.urls/headless URL is ever mounted; see
+# apps/identity/services/social_login_service.py). identity.User has no username field at
+# all (apps/identity/models/user.py), hence USER_MODEL_USERNAME_FIELD = None.
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*"]
+ACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_ADAPTER = "apps.identity.services.social_login_service.PizzaStoreSocialAccountAdapter"
+SOCIALACCOUNT_AUTO_SIGNUP = True
+# Deliberately left False (the default): auto-connecting a social login to an existing
+# unlinked account by matching verified email is exactly the silent-account-takeover risk
+# Issue #178's Security Requirements call out -- PizzaStoreSocialAccountAdapter.pre_social_login
+# raises AccountExistsUnlinkedError in that case instead.
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = False
+
+# Google and Apple's verify_token() (ID-token verification against the provider's own
+# public JWKS) only ever reads the provider app's client_id, which is not confidential --
+# it is embedded in every client-side OAuth request already. Facebook's verify_token()
+# additionally calls Graph API's /debug_token, which requires exchanging the confidential
+# App Secret for an app access token (allauth/socialaccount/providers/facebook/flows.py) --
+# so only Facebook gets a real Compose secret; Google/Apple's client_id are plain env vars,
+# consistent with other non-confidential config in this project (e.g.
+# DJANGO_CORS_ALLOWED_ORIGINS above).
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APPS": [{"client_id": os.environ.get("GOOGLE_OAUTH_CLIENT_ID", ""), "secret": ""}],
+    },
+    "apple": {
+        "APPS": [
+            {"client_id": os.environ.get("APPLE_OAUTH_CLIENT_ID", ""), "secret": "", "key": ""}
+        ],
+    },
+    "facebook": {
+        "APPS": [
+            {
+                "client_id": os.environ.get("FACEBOOK_OAUTH_CLIENT_ID", ""),
+                "secret": _read_secret(
+                    "facebook_app_secret", os.environ.get("FACEBOOK_APP_SECRET", "")
+                ),
+            }
+        ],
+    },
+}
 
 # No real email/SMS provider has been chosen yet (architecture risk register's "Likely
 # Technical Debt #2") -- Issue #177 deliberately implements OTP/password-reset delivery

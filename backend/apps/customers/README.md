@@ -36,7 +36,18 @@ creation is `identity`'s exclusive domain (ADR 0004), so this module never const
 `User` row itself or imports `identity.models`/`repositories`. It then creates the `Customer`
 row, calls `identity.services.role_assignment_service.RoleAssignmentService.assign()` (see
 Issue #175) to grant the `customer` role, and publishes `CustomerRegistered` -- all inside the
-same DB transaction, so the user/customer/role-assignment/event rows are all-or-nothing.
+same DB transaction, so the user/customer/role-assignment/event rows are all-or-nothing. The
+create-`Customer`/assign-role/publish-event half of that is factored out as its own public
+`RegistrationService.provision_customer(user) -> Customer` (Issue #178) -- idempotent (a
+second call for a `user` that already has a `Customer` row is a no-op, returning the existing
+row) -- so `apps.identity.services.social_login_service.SocialLoginService` can call it
+unconditionally on every social login for a `User` that already exists (not just a brand-new
+one), without duplicating this module's own provisioning logic. This is called **from**
+`identity`, the reverse of every other cross-module call documented in this file -- see
+`backend/apps/identity/README.md`'s social login section for why: `identity` owns the social
+login use case end to end and reaches into `customers` for the profile it provisions, the same
+direction `LoginView`'s own callers never need because email/password registration already
+starts on the `customers` side.
 
 `CustomerOutboxEvent` (`models/customer_outbox_event.py`) is this module's concrete
 `shared/events/outbox.py::AbstractOutboxEvent` subclass, relayed to the `customers.events`

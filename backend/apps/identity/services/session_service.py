@@ -38,7 +38,16 @@ class SessionService:
         user = self._authentication_service.verify_credentials(email, password)
         if user is None:
             raise InvalidCredentialsError("Invalid email or password.")
+        return self.issue_tokens_for(user, device_label=device_label, ip_address=ip_address)
 
+    def issue_tokens_for(
+        self, user: User, *, device_label: str = "", ip_address: str | None = None
+    ) -> TokenPair:
+        """The second half of login() above, factored out so
+        apps.identity.services.social_login_service.SocialLoginService (Issue #178) can mint
+        the platform's real access/refresh pair for a `User` it has already authenticated
+        via a social provider, without duplicating this claims-derivation/token-issuance
+        logic or going through password verification a social login never has."""
         roles, org_id, branch_id = self._claims_for(user)
         access_token = self._token_service.issue_access_token(
             user, roles=roles, org_id=org_id, branch_id=branch_id

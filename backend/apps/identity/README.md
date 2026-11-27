@@ -65,4 +65,42 @@ per-account login throttle rejects the request past its limit. `POST
 /api/v1/auth/password-reset/{request,confirm}/` (Issue #177) are documented alongside the rate
 limits above in `docs/api/conventions.md`.
 
+`services/social_login_service.py::SocialLoginService.complete_login(provider_id, token)`
+(Issue #178) backs `POST /api/v1/auth/social/{google,apple,facebook}/`. `django-allauth` is
+used **only** for the provider token handshake and `SocialAccount`-to-`identity.User`
+linking (`django.contrib.sites`/`sessions`, `allauth`, `allauth.account`,
+`allauth.socialaccount` in `INSTALLED_APPS`) -- its own `allauth.urls`/`allauth.headless` URL
+surface is never mounted, and no allauth session cookie is ever exposed to the API client
+(verified by a dedicated test asserting no `sessionid` cookie in the response). Each call
+builds a disposable `HttpRequest` + `signed_cookies`-backed session
+(`_build_isolated_request`), re-entered via `allauth.core.context.request_context` so
+allauth-internal code reading the context-local request also sees it, and discards it once
+`allauth.socialaccount.helpers.complete_social_login` returns -- the real client
+request/response never receives anything allauth attached to that disposable request/session.
+`PizzaStoreSocialAccountAdapter` (the project's `SOCIALACCOUNT_ADAPTER`) overrides only
+`pre_social_login`: when the provider's **verified** email matches an existing, unlinked
+`identity.User`, it raises `AccountExistsUnlinkedError` (surfaced as `400 validation_error`
+with an `account_exists_unlinked` detail key) rather than silently merging into that account --
+a provider-claimed email that isn't verified is deliberately never matched at all (not even to
+reject), since doing so would let an always-unverified provider (Facebook's classic Graph API
+response never reports `verified`, by allauth's own design) be used as an email-existence
+oracle. On success, `complete_login` calls
+`apps.customers.services.registration_service.RegistrationService.provision_customer(user)` --
+the same create-`Customer`/assign-`customer`-role/publish-`CustomerRegistered` step
+`RegistrationService.register()` already uses for email/password sign-up (Issue #176), now
+factored out so a social-login-created `User` gets an identical `Customer` profile on its
+first-ever login, idempotent on every later login -- then
+`SessionService.issue_tokens_for(user)` (also factored out of `SessionService.login()`) to
+mint the platform's real RS256/refresh pair exactly as `LoginView` does. Provider token shapes
+are not symmetric: Google/Apple only ever send `id_token`; Facebook sends either `id_token`
+(Limited Login) or `access_token` (classic OAuth2) -- see
+`api/serializers.py::SocialLoginSerializer` and each provider's own `verify_token()` in
+django-allauth. `backend/apps/identity/tests/integration/test_social_login.py` and
+`tests/unit/test_social_login_service.py` cover: a new social identity creates a
+`User`+`Customer`+role assignment and a usable token pair for each of the three providers; a
+second login with the same identity reuses the existing `User`/`Customer`; a verified-email
+collision with an existing unlinked account is rejected and creates nothing; an
+always-unverified collision (Facebook) still fails closed without merging; and no `sessionid`
+cookie ever appears in the response.
+
 Publishes: none.

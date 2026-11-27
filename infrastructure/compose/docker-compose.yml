@@ -66,6 +66,12 @@ secrets:
   # at rest.
   field_encryption_key:
     file: ./secrets/field_encryption_key.txt
+  # Facebook social login App Secret (Issue #178) -- Facebook's verify_token() exchanges it
+  # for an app access token to call Graph API's /debug_token; read by
+  # backend/config/settings.py's SOCIALACCOUNT_PROVIDERS. Google/Apple's client_id is not
+  # confidential (see that settings.py comment), so only Facebook gets a real secret here.
+  facebook_app_secret:
+    file: ./secrets/facebook_app_secret.txt
 
 services:
   postgres:
@@ -195,6 +201,9 @@ services:
       RABBITMQ_PORT: "5672"
       RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER}
       DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      APPLE_OAUTH_CLIENT_ID: ${APPLE_OAUTH_CLIENT_ID}
+      FACEBOOK_OAUTH_CLIENT_ID: ${FACEBOOK_OAUTH_CLIENT_ID}
     secrets:
       - django_secret_key
       - postgres_password
@@ -202,6 +211,7 @@ services:
       - rabbitmq_password
       - jwt_private_key
       - field_encryption_key
+      - facebook_app_secret
     depends_on:
       postgres:
         condition: service_healthy

@@ -27,6 +27,14 @@ class RefreshRateThrottle(ScopedRateThrottle):
     scope = "refresh"
 
 
+class SocialLoginRateThrottle(ScopedRateThrottle):
+    """Per-IP throttle (Issue #178), same rationale/rate as LoginRateThrottle above -- the
+    account identity isn't known until the provider token is verified, so there is no
+    per-account counterpart like LoginAccountRateThrottle here."""
+
+    scope = "social_login"
+
+
 class PasswordResetRequestRateThrottle(SimpleRateThrottle):
     """Per-submitted-email throttle (Issue #177), same pattern as LoginAccountRateThrottle
     above -- the request is always anonymous, so there is no request.user to key on."""
