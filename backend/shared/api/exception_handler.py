@@ -10,6 +10,7 @@ _STATUS_CODE_TO_ERROR_CODE = {
     401: "authentication_failed",
     403: "permission_denied",
     404: "not_found",
+    409: "conflict",
 }
 
 _DEFAULT_MESSAGE = {
@@ -17,6 +18,7 @@ _DEFAULT_MESSAGE = {
     "authentication_failed": "Authentication failed.",
     "permission_denied": "You do not have permission to perform this action.",
     "not_found": "Not found.",
+    "conflict": "The request conflicts with the current state of the resource.",
     "internal_error": "An unexpected error occurred.",
 }
 
