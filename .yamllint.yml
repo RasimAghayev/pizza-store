@@ -1,5 +1,11 @@
 extends: default
 
+# Helm chart templates use Go template syntax (`{{ .Release.Name }}`, `{{- include ... }}`)
+# inside `.yaml` files -- not valid standalone YAML until rendered -- so yamllint cannot
+# parse them.
+ignore: |
+  infrastructure/kubernetes/helm/*/templates/
+
 rules:
   # No hand-written YAML in this repo uses a `---` document-start marker; not worth
   # retrofitting purely to satisfy the linter.
