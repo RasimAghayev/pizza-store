@@ -151,6 +151,35 @@ wiring this into CI is Phase 3 work; this ADR fixes the rule itself.
   if it reveals a gap in this layout, that gap is fixed via an ADR amendment, not by silently
   diverging per module.
 
+## Amendment (2026-11-27, Issue #183)
+
+Phase 10's close-out audit (Issue #183) found the first real gap this ADR's own Consequences
+section anticipated: `apps/customers/services/registration_service.py` and
+`verification_service.py` import `apps.identity.domain.rbac.RoleCode` — a plain `StrEnum`
+value object, no Django/infrastructure import — purely to pass it as the `role_code` argument
+to the already-sanctioned `apps.identity.services.role_assignment_service.RoleAssignmentService
+.assign(role_code=...)` call. The Decision section's blanket rule as originally worded forbids
+any `.domain` import from another module, with no carve-out for this case the way `.events` is
+carved out.
+
+Per this ADR's own Consequences section, this is resolved by amendment rather than by silent
+divergence: a module's `domain/` enum/value type is a permitted import from another module
+**only** when it is a parameter type for a call the receiving module already makes through
+that other module's sanctioned `services/` entry point (the same already-allowed cross-module
+services call this import exists to support) — never to reach into the other module's
+business logic directly. This is narrower than exempting `.domain` generally: it does not
+permit importing another module's domain *functions* or *services-shaped* logic, only its
+plain data/enum vocabulary needed to call a method that import's own module already calls
+legitimately. `RoleCode` is the first and, as of this amendment, only concrete case.
+
+This audit also confirmed the `lint-imports` CI job this Decision section says "is added in
+Phase 3" was never actually wired (no `import-linter` dependency, no `[importlinter]` config,
+no CI step) — the cross-module import contract above has been manual-review-enforced only
+since Phase 6. Tracked as its own follow-up (Issue #192) rather than folded into Issue #183,
+since adding a new CI tool is infrastructure work outside a verification/close-out Task's
+scope; this audit's own check was done by grepping `apps/*/**.py` for cross-module imports by
+hand (see Issue #183's evidence comment).
+
 ## Alternatives
 
 - **Flat app structure, no sub-layering** (`models.py`, `serializers.py`, `services.py`,
