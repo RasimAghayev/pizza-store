@@ -19,5 +19,13 @@ class RefreshToken(models.Model):
     device_label = models.CharField(max_length=255, blank=True, default="")
     ip_address = models.GenericIPAddressField(null=True, blank=True)
 
+    # Snapshot of the access-token claims this refresh token's family was issued with (Issue
+    # #175) -- rotation carries these forward unchanged rather than re-querying
+    # role_assignments on every refresh; a role change only takes effect on the next full
+    # login (see apps/identity/README.md for this deliberate limitation).
+    roles_snapshot = models.JSONField(default=list, blank=True)
+    organization_id = models.PositiveBigIntegerField(null=True, blank=True)
+    branch_id = models.PositiveBigIntegerField(null=True, blank=True)
+
     class Meta:
         app_label = "identity"

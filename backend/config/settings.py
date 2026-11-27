@@ -102,6 +102,12 @@ REST_FRAMEWORK = {
     "DEFAULT_VERSION": "v1",
     "ALLOWED_VERSIONS": ["v1"],
     "EXCEPTION_HANDLER": "shared.api.exception_handler.api_exception_handler",
+    # Resolves request.user from the access token (cookie or Authorization header) for every
+    # protected endpoint from Issue #175 onward -- login/refresh/logout/ping stay public by
+    # explicitly setting authentication_classes = [] (ADR 0006; see apps/identity/api/views.py).
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "apps.identity.api.authentication.JWTCookieOrHeaderAuthentication",
+    ],
     "DEFAULT_THROTTLE_RATES": {
         "login": "10/min",
         "login_account": "5/min",

@@ -4,6 +4,7 @@ python_files = ["test_*.py", "*_test.py", "tests.py"]
 
 [tool.ruff]
 line-length = 100
+extend-exclude = ["**/migrations/*.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]

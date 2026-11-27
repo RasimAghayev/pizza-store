@@ -2,6 +2,7 @@ import datetime as dt
 import hashlib
 import secrets
 import uuid
+from collections.abc import Sequence
 
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -54,13 +55,20 @@ class TokenService:
     def __init__(self, refresh_token_repository: RefreshTokenRepository | None = None) -> None:
         self._refresh_token_repository = refresh_token_repository or RefreshTokenRepository()
 
-    def issue_access_token(self, user: User) -> str:
+    def issue_access_token(
+        self,
+        user: User,
+        *,
+        roles: Sequence[str] = (),
+        org_id: int | None = None,
+        branch_id: int | None = None,
+    ) -> str:
         now = dt.datetime.now(dt.timezone.utc)
         payload: dict[str, object] = {
             "sub": str(user.pk),
-            "roles": [],
-            "org_id": None,
-            "branch_id": None,
+            "roles": list(roles),
+            "org_id": org_id,
+            "branch_id": branch_id,
             "jti": str(uuid.uuid4()),
             "iat": now,
             "exp": now + ACCESS_TOKEN_LIFETIME,
@@ -71,7 +79,14 @@ class TokenService:
         return jwt.decode(token, _PUBLIC_KEY, algorithms=[JWT_ALGORITHM])
 
     def issue_refresh_token(
-        self, user: User, *, device_label: str = "", ip_address: str | None = None
+        self,
+        user: User,
+        *,
+        roles: Sequence[str] = (),
+        org_id: int | None = None,
+        branch_id: int | None = None,
+        device_label: str = "",
+        ip_address: str | None = None,
     ) -> tuple[str, RefreshToken]:
         raw_token = secrets.token_urlsafe(48)
         now = timezone.now()
@@ -82,6 +97,9 @@ class TokenService:
             expires_at=now + REFRESH_TOKEN_LIFETIME,
             device_label=device_label,
             ip_address=ip_address,
+            roles_snapshot=list(roles),
+            organization_id=org_id,
+            branch_id=branch_id,
         )
         return raw_token, record
 
@@ -98,11 +116,24 @@ class TokenService:
             raise InvalidRefreshTokenError("Refresh token has expired.")
 
         self._refresh_token_repository.revoke(record)
+        # Carries the original login's roles/org_id/branch_id forward unchanged (ADR 0006 --
+        # see Issue #175) rather than re-querying role_assignments on every refresh; a role
+        # change takes effect on the account's next full login, a documented limitation.
         new_raw_token, new_record = self.issue_refresh_token(
-            record.user, device_label=device_label, ip_address=ip_address
+            record.user,
+            roles=record.roles_snapshot,
+            org_id=record.organization_id,
+            branch_id=record.branch_id,
+            device_label=device_label,
+            ip_address=ip_address,
         )
         self._refresh_token_repository.mark_replaced(record, new_record)
-        access_token = self.issue_access_token(record.user)
+        access_token = self.issue_access_token(
+            record.user,
+            roles=record.roles_snapshot,
+            org_id=record.organization_id,
+            branch_id=record.branch_id,
+        )
         return access_token, new_raw_token, new_record
 
     def revoke_family_for_token(self, raw_token: str) -> None:
