@@ -36,6 +36,8 @@ def test_permissions_for_unions_across_multiple_roles():
         "restaurants.edit",
         "branches.view",
         "branches.edit",
+        "products.view",
+        "products.edit",
     }
 
 

@@ -24,4 +24,7 @@ urlpatterns = [
     # calls GET/POST/PATCH/DELETE /api/v1/branches/{,<id>/,<id>/hours/,<id>/closures/} -- see
     # backend/apps/branches/api/views.py (Issue #180)
     path("api/<str:version>/branches/", include("apps.branches.api.urls")),
+    # calls GET/POST/PATCH/DELETE /api/v1/products/{,<id>/,toppings/...,allergens/...,
+    # <id>/price-quote/} -- see backend/apps/products/api/views.py (Issue #181)
+    path("api/<str:version>/products/", include("apps.products.api.urls")),
 ]
