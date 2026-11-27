@@ -97,25 +97,27 @@ same as `codeql.yml`).
 - `discover-images`: runs `docker compose -f infrastructure/compose/docker-compose.yml
   config --images` against a CI-only `.env` (same generation mechanism as
   `integration-validation.yml`) to derive the current image list at run time, so this
-  workflow never drifts from whatever Phase 2's Compose file actually pins. The list is
-  exposed as a job output consumed by the matrix below.
+  workflow never drifts from whatever the Compose file actually pins — it picked up each of
+  Phase 4's five observability images and both Phase 6/7 application Dockerfiles
+  automatically, no workflow edit needed each time. The list is exposed as a job output
+  consumed by the matrix below.
 - `trivy-scan`: a `strategy.matrix` job, one entry per image from `discover-images`, each
   running `aquasecurity/trivy-action` with `severity: CRITICAL,HIGH` and `exit-code: 1`
-  against the real pinned image (`postgres:16-alpine`, `mongo:7`, `redis:7-alpine`,
-  `rabbitmq:3-management-alpine`, `nginxinc/nginx-unprivileged:1.27-alpine` as of Phase 2 —
-  no application Dockerfile exists yet; Phase 6/7/8 will add those and this workflow picks
-  them up automatically once they appear in the Compose file). Each image's SARIF result is
+  against the real pinned image. 17 images today: the 5 Phase 2 infrastructure images
+  (`postgres`, `mongo`, `redis`, `rabbitmq`, `nginxinc/nginx-unprivileged`), the 2 Phase 6/7
+  application images built from `backend/Dockerfile`/`frontend/Dockerfile`
+  (`pizza-store-backend`, `pizza-store-frontend`), and the 10 Phase 4 observability images
+  (`grafana`, `prometheus`, `alertmanager`, `loki`, `promtail`, `jaeger`, `otel-collector`,
+  `postgres-exporter`, `mongodb-exporter`, `redis-exporter`). Each image's SARIF result is
   uploaded to the Security tab independently via `github/codeql-action/upload-sarif`, so one
   image's findings don't mask another's.
 
 ### `.trivyignore`
 
-Scanning the five real images (rather than a synthetic placeholder) surfaces genuine
-CRITICAL/HIGH CVEs today — all of them in vendor-published layers we don't build ourselves
-(Alpine base packages, and the `gosu`/mongo-tool Go binaries and `js-yaml` bundled by the
-official postgres/mongo images). Every one of them already has a fix published by the
-upstream package maintainer (Alpine, Go, npm); what's missing is the vendor image being
-rebuilt on top of that fix, which is outside this repository's control.
+Scanning all 17 real images (rather than a synthetic placeholder) surfaces genuine
+CRITICAL/HIGH CVEs — mostly vendor-published layers we don't build ourselves (Alpine base
+packages, vendored Go modules in the observability images), each already fixed upstream but
+not yet rebuilt into the vendor's published image.
 
 `.trivyignore` documents each currently-known CVE, grouped by the package/binary
 responsible, with a one-line reason per group — never a blanket severity downgrade. It is a
