@@ -1,5 +1,5 @@
 .PHONY: up down build restart logs status health test test-backend test-frontend lint migrate seed reset clean \
-	dataset-smoke dataset-integration dataset-load generate-jwt-keypair
+	dataset-smoke dataset-integration dataset-load generate-jwt-keypair generate-field-encryption-key
 
 # NOTE: targets below assume infrastructure/compose/docker-compose.yml, added in Phase 2
 # (Local Docker Infrastructure). Running them before that file exists will fail.
@@ -70,3 +70,9 @@ dataset-load:
 # overwrite an existing key by default, since that would invalidate every live refresh token.
 generate-jwt-keypair:
 	python scripts/generate-jwt-keypair.py
+
+# Fernet field-level encryption key (ADR 0006, Issue #179) -- run once per environment;
+# refuses to overwrite an existing key by default, since that would make every
+# already-encrypted row (DOB/phone/street address) unreadable.
+generate-field-encryption-key:
+	python scripts/generate-field-encryption-key.py

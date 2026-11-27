@@ -173,6 +173,13 @@ RABBITMQ_PASSWORD = _read_secret("rabbitmq_password", os.environ.get("RABBITMQ_P
 # scripts/generate-jwt-keypair.py; see docs/security/secret-management.md.
 JWT_PRIVATE_KEY_PEM = _read_secret("jwt_private_key")
 
+# Fernet field-level encryption key (ADR 0006, Issue #179) -- read by
+# shared/encryption/fields.py, which falls back to an ephemeral, process-local key when this
+# is unset (e.g. a lightweight test/CI run outside Compose), same pattern as
+# JWT_PRIVATE_KEY_PEM above. Generated via scripts/generate-field-encryption-key.py; see
+# docs/security/secret-management.md.
+FIELD_ENCRYPTION_KEY = _read_secret("field_encryption_key")
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LANGUAGE_CODE = "en-us"
