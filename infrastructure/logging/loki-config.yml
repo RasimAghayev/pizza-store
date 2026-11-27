@@ -1,0 +1,48 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: info
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+# Filesystem storage backend only (Task #93) -- no external object store (S3/GCS) is
+# provisioned for this stack, so chunks and the index both live under the loki-data
+# named volume.
+storage_config:
+  filesystem:
+    directory: /loki/chunks
+  tsdb_shipper:
+    active_index_directory: /loki/tsdb-index
+    cache_location: /loki/tsdb-cache
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+compactor:
+  working_directory: /loki/compactor
+
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100
+
+# Retention/rotation beyond Loki's own defaults is out of scope for this Task -- see
+# infrastructure/logging/README.md and docs/security/secret-management.md (Task #97) for
+# the documented gap.

@@ -58,8 +58,9 @@ An access/refresh token pair, both issued by the `identity` module:
   that held a token from that family.
 - **Storage**: both tokens are delivered to browser clients as `httpOnly`, `Secure`,
   `SameSite=Strict` cookies — never `localStorage`/`sessionStorage`, so an XSS payload cannot
-  read either token via JavaScript. The refresh cookie is scoped to the `/auth/refresh` path
-  only, so it is never sent on ordinary API calls. Non-browser clients (the future courier
+  read either token via JavaScript. The refresh cookie is scoped to the `/auth` path prefix
+  (covering `login`/`refresh`/`logout`, the only endpoints that read it) rather than `/`, so
+  it is never sent on ordinary business-domain API calls. Non-browser clients (the future courier
   mobile app) instead receive both tokens in the response body and are responsible for
   OS-level secure storage (e.g. Android Keystore/iOS Keychain); they send the access token via
   the `Authorization` header instead of a cookie.

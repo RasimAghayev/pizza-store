@@ -44,8 +44,15 @@ jobs:
       - name: Wait for all services to report healthy
         run: |
           # Phase 2 (Issue #55) observed every service reaching `healthy` within ~20-35s;
-          # 90s gives comfortable headroom before this step fails the job.
-          expected=5
+          # 90s gives comfortable headroom before this step fails the job. 12 of the 15
+          # Compose services carry a healthcheck (postgres, mongodb, redis, rabbitmq, nginx,
+          # prometheus, alertmanager, grafana, postgres-exporter, jaeger, backend, frontend --
+          # the latter two added by Phase 6/7) -- loki, promtail, mongodb-exporter,
+          # redis-exporter, and otel-collector are scratch/distroless images with no shell to
+          # probe with and are intentionally excluded from this count. `-ge` rather than `-eq`
+          # so this doesn't silently start timing out again the next time a service gains a
+          # healthcheck without this count being updated to match.
+          expected=12
           timeout=90
           interval=5
           elapsed=0
@@ -53,7 +60,7 @@ jobs:
             healthy=$(docker compose -f "$COMPOSE_FILE" --env-file .env ps --format json \
               | jq -s 'flatten | map(select(.Health == "healthy")) | length')
             echo "Healthy: ${healthy}/${expected} (elapsed ${elapsed}s)"
-            if [ "$healthy" -eq "$expected" ]; then
+            if [ "$healthy" -ge "$expected" ]; then
               exit 0
             fi
             if [ "$elapsed" -ge "$timeout" ]; then
@@ -82,17 +89,152 @@ jobs:
             exit 1
           fi
 
-  backend-frontend-integration:
-    name: Backend/frontend integration tests (placeholder)
+  migration-upgrade-downgrade:
+    name: Django migration upgrade/downgrade test
     runs-on: ubuntu-latest
-    needs: compose-validate
+    # Activated by Phase 5 (Task #110) against the one real migration Task #108's `health`
+    # app produces -- proves the upgrade/downgrade mechanism itself works before Phase 6
+    # starts adding real business-domain migrations on top of it.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: pizza_store
+          POSTGRES_USER: pizza_store
+          POSTGRES_PASSWORD: pizza_store
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pizza_store -d pizza_store"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_DB: pizza_store
+      POSTGRES_USER: pizza_store
+      POSTGRES_PASSWORD: pizza_store
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+    defaults:
+      run:
+        working-directory: backend
     steps:
-      # job-level `if` can't call hashFiles(); the guard lives on the step instead.
-      # Inert until Phase 6 (Django migration checks + API integration tests) and Phase 7
-      # (Angular e2e smoke tests) add real backend/frontend/ source to run against the
-      # live stack validated by compose-validate above.
-      - name: Placeholder (active once backend/ or frontend/ exists)
-        if: ${{ hashFiles('backend/**') != '' || hashFiles('frontend/**') != '' }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Install backend dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Upgrade (apply all migrations from empty)
+        run: python manage.py migrate
+
+      - name: Downgrade (reverse the health app's migration back to nothing)
+        run: python manage.py migrate health zero
+
+      - name: Re-upgrade (confirm forward migration re-applies cleanly)
+        run: python manage.py migrate
+
+      - name: Assert final state is fully applied, not partial
         run: |
-          echo "backend/ or frontend/ detected — wire Django migration checks, API"
-          echo "integration tests (Phase 6), and Angular e2e smoke tests (Phase 7) here."
+          output=$(python manage.py showmigrations health)
+          echo "$output"
+          if echo "$output" | grep -q '\[ \]'; then
+            echo "health app has an unapplied migration after re-upgrade" >&2
+            exit 1
+          fi
+
+  backend-frontend-integration:
+    name: Backend/frontend integration tests (Playwright auth E2E)
+    runs-on: ubuntu-latest
+    # Independent of compose-validate (which tears its own stack down with `if: always()`
+    # before this job could reuse it) -- brings up its own copy of the full stack instead.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5.0.0
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Generate CI-only secrets and .env
+        run: |
+          cp .env.example .env
+          for f in infrastructure/compose/secrets/*.txt.example; do
+            cp "$f" "${f%.example}"
+          done
+
+      - name: Bring up the stack
+        run: make up
+
+      - name: Wait for all services to report healthy
+        run: |
+          # Same expectations as the compose-validate job above -- see its comment for the
+          # 12/3 healthchecked/shell-less split.
+          expected=12
+          timeout=90
+          interval=5
+          elapsed=0
+          while true; do
+            healthy=$(docker compose -f "$COMPOSE_FILE" --env-file .env ps --format json \
+              | jq -s 'flatten | map(select(.Health == "healthy")) | length')
+            echo "Healthy: ${healthy}/${expected} (elapsed ${elapsed}s)"
+            if [ "$healthy" -ge "$expected" ]; then
+              exit 0
+            fi
+            if [ "$elapsed" -ge "$timeout" ]; then
+              docker compose -f "$COMPOSE_FILE" --env-file .env ps
+              docker compose -f "$COMPOSE_FILE" --env-file .env logs
+              echo "Timed out waiting for all services to become healthy" >&2
+              exit 1
+            fi
+            sleep "$interval"
+            elapsed=$((elapsed + interval))
+          done
+
+      - name: Run database migrations
+        # `make up` only starts the containers -- backend/Dockerfile's CMD runs the dev
+        # server directly with no migration step, so the schema doesn't exist yet without
+        # this. Mirrors `make migrate`.
+        run: docker compose -f "$COMPOSE_FILE" --env-file .env exec -T backend python manage.py migrate
+
+      - name: Seed the Playwright fixture user
+        # Calls RegistrationService directly (apps/identity/services/registration_service.py)
+        # -- no registration HTTP endpoint exists (Issue #127/#141), so this is a one-off CI
+        # seed via the internal service, not a production-facing path. Credentials must match
+        # frontend/e2e/tests/auth-flow.spec.ts's FIXTURE_EMAIL/FIXTURE_PASSWORD exactly.
+        run: |
+          docker compose -f "$COMPOSE_FILE" --env-file .env exec -T backend python manage.py shell -c "
+          from apps.identity.services.registration_service import RegistrationService
+          from apps.identity.models import User
+          email = 'e2e-auth@example.com'
+          if not User.objects.filter(email=email).exists():
+              RegistrationService().register(email=email, password='correct-horse-battery-staple')
+          "
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the auth-flow E2E tests against the live stack
+        working-directory: frontend
+        run: npm run e2e:auth
+
+      - name: Tear down and verify clean removal
+        if: always()
+        run: |
+          make clean
+          leftover_volumes=$(docker volume ls --filter "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}" -q)
+          leftover_networks=$(docker network ls --filter "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}" -q)
+          if [ -n "$leftover_volumes" ] || [ -n "$leftover_networks" ]; then
+            echo "Leftover volumes: $leftover_volumes" >&2
+            echo "Leftover networks: $leftover_networks" >&2
+            exit 1
+          fi

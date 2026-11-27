@@ -20,7 +20,16 @@
 # Go stdlib CVEs disclosed against that toolchain; gosu's upstream maintainer has not
 # published a build against a patched Go release, so postgres/mongo can't rebuild on top of
 # one either. Tracked upstream: https://github.com/tianon/gosu.
-# Affects: postgres:16-alpine, mongo:7
+#
+# The same CVE IDs also show up against the Go stdlib embedded in the statically-linked
+# grafana and mongodb_exporter binaries (Task #92/Phase 4) -- same root cause (project
+# hasn't republished against a newer Go toolchain yet), different vendor. Also present in
+# promtail (Task #93/Phase 4), which is on the same stale-toolchain footing -- see the
+# dedicated promtail note near the end of this file for why it can't be bumped past 3.6.11.
+# jaeger (Task #94/Phase 4) adds the same set again, bundling Go 1.25.4 at its own current
+# latest release (1.76.0) -- not yet rebuilt against a patched toolchain either.
+# Affects: postgres:16-alpine, mongo:7, grafana/grafana:13.3.2, percona/mongodb_exporter:0.54.0,
+#   grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
 # -----------------------------------------------------------------------------------------
 CVE-2025-61726
 CVE-2025-61729
@@ -54,9 +63,22 @@ CVE-2026-97031
 # (bsondump, mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat,
 # mongotop). Same situation as gosu above: fixed upstream in x/net, not yet in a republished
 # mongo image build.
-# Affects: mongo:7
+#
+# Also present in grafana, prometheus, and mongodb_exporter's own vendored x/net (Task #92/
+# Phase 4) at their current latest release -- same situation, different vendor. promtail
+# (Task #93/Phase 4) adds three more x/net CVE IDs beyond grafana/prometheus/mongodb_exporter's
+# set, same root cause. jaeger (Task #94/Phase 4) shares the same four CVE IDs as this block
+# plus three more already covered by the gosu/stdlib block above (stdlib and x/net disclosed
+# the same underlying flaws for a few of these IDs). alertmanager (Task #95/Phase 4) shares
+# one of the four (CVE-2026-78661), same root cause.
+# Affects: mongo:7, grafana/grafana:13.3.2, prom/prometheus:v3.16.0,
+#   percona/mongodb_exporter:0.54.0, grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0,
+#   prom/alertmanager:v0.35.1
 # -----------------------------------------------------------------------------------------
 CVE-2026-78661
+CVE-2026-25681
+CVE-2026-27136
+CVE-2026-46600
 
 # -----------------------------------------------------------------------------------------
 # js-yaml, bundled with the Node.js-based mongosh shipped in the mongo image. Fixed upstream
@@ -88,8 +110,10 @@ CVE-2026-76957
 CVE-2026-77214
 CVE-2026-93990
 
-# openssl (libcrypto3/libssl3) -- Affects: nginxinc/nginx-unprivileged:1.27-alpine,
-# rabbitmq:3-management-alpine, redis:7-alpine
+# openssl (libcrypto3/libssl3, or libssl3t64/openssl on promtail's Ubuntu base) -- Affects:
+# nginxinc/nginx-unprivileged:1.27-alpine, rabbitmq:3-management-alpine, redis:7-alpine,
+# grafana/promtail:3.6.11 (Task #93/Phase 4), jaegertracing/all-in-one:1.76.0 (Task #94/
+# Phase 4, Alpine 3.22 base)
 CVE-2025-15467
 CVE-2025-69421
 CVE-2026-124709
@@ -130,6 +154,18 @@ CVE-2025-49796
 CVE-2026-6732
 CVE-2026-86144
 
+# libxml2, newly disclosed since the 2026-11-26 baseline above -- Affects: postgres:16-alpine
+# (Alpine 3.24.4 base, installed libxml2 2.13.9-r2; fixed upstream in 2.13.9-r4/r5, not yet
+# in a republished postgres:16-alpine build as of this re-check during Issue #161's close-out
+# re-validation). Confirmed via `trivy image --severity CRITICAL,HIGH postgres:16-alpine`
+# against the live floating `:16-alpine` tag, not a stale local pin.
+CVE-2026-11979
+CVE-2026-86138
+CVE-2026-86139
+CVE-2026-86140
+CVE-2026-86142
+CVE-2026-86143
+
 # curl/libcurl -- Affects: nginxinc/nginx-unprivileged:1.27-alpine
 CVE-2026-5773
 CVE-2026-6276
@@ -149,11 +185,12 @@ CVE-2026-87636
 CVE-2026-9947
 
 # musl/musl-utils -- Affects: nginxinc/nginx-unprivileged:1.27-alpine,
-# rabbitmq:3-management-alpine
+# rabbitmq:3-management-alpine, jaegertracing/all-in-one:1.76.0 (Task #94/Phase 4)
 CVE-2026-107891
 CVE-2026-40200
 
-# zlib -- Affects: nginxinc/nginx-unprivileged:1.27-alpine, rabbitmq:3-management-alpine
+# zlib -- Affects: nginxinc/nginx-unprivileged:1.27-alpine, rabbitmq:3-management-alpine,
+# jaegertracing/all-in-one:1.76.0 (Task #94/Phase 4)
 CVE-2026-22184
 CVE-2026-85091
 
@@ -168,3 +205,177 @@ CVE-2026-27135
 
 # tiff -- Affects: nginxinc/nginx-unprivileged:1.27-alpine
 CVE-2026-4775
+
+# -----------------------------------------------------------------------------------------
+# github.com/grafana/tempo, vendored into the grafana binary as its Tempo datasource
+# client. Fixed upstream in the tempo client module; grafana/grafana:13.3.2 (current latest
+# release as of this baseline) has not yet picked up that bump in its own go.mod.
+# Affects: grafana/grafana:13.3.2
+# -----------------------------------------------------------------------------------------
+CVE-2026-21728
+CVE-2026-28377
+
+# -----------------------------------------------------------------------------------------
+# github.com/go-jose/go-jose/v4, vendored into the mongodb_exporter binary. Fixed upstream
+# in go-jose; percona/mongodb_exporter:0.54.0 (current latest release as of this baseline)
+# has not yet picked up that bump in its own go.mod.
+# Affects: percona/mongodb_exporter:0.54.0
+# -----------------------------------------------------------------------------------------
+CVE-2026-116587
+
+# -----------------------------------------------------------------------------------------
+# Most of what's below is grafana/promtail:3.6.11 (Task #93/Phase 4), which deliberately
+# pins older than Loki's own 3.7.10: Grafana has stopped publishing grafana/promtail image
+# builds past 3.6.11 (confirmed directly against Docker Hub, not assumed -- the project is
+# being wound down in favor of Grafana Alloy). 3.6.11 is the real current latest, so these
+# findings cannot be cleared by a version bump the way Loki's were; they're genuine "fixed
+# upstream, not yet in a republished image" waivers like the rest of this file. A few blocks
+# below are also shared with jaegertracing/all-in-one:1.76.0 (Task #94/Phase 4) -- two
+# unrelated Go binaries vendoring the same stale modules -- each block's own Affects line is
+# the source of truth for which image(s) it covers, not this header.
+# -----------------------------------------------------------------------------------------
+
+# apt / libapt-pkg6.0t64, Ubuntu base layer package. Affects: grafana/promtail:3.6.11
+CVE-2026-109518
+
+# gpgv (GnuPG), Ubuntu base layer package. Affects: grafana/promtail:3.6.11
+CVE-2025-68973
+
+# github.com/docker/docker, vendored as promtail's Docker API client for its docker_sd_configs
+# container discovery (read-only: listing containers/labels, never pulling or extracting
+# images). Both CVEs describe vulnerabilities in the Docker Engine's own image-pull/extraction
+# code path, which promtail's read-only discovery usage never exercises; Trivy still flags the
+# vendored client library itself. No fixed version is published upstream yet (FixedVersion:
+# None) -- not just "not rebuilt", there is nothing to rebuild against.
+# Affects: grafana/promtail:3.6.11
+CVE-2026-41567
+CVE-2026-42306
+
+# github.com/klauspost/compress, vendored into promtail for log-stream compression and into
+# jaeger (Task #94/Phase 4) for the same purpose. Fixed upstream; not yet picked up by either
+# project's current latest image build.
+# Affects: grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
+CVE-2026-63209
+
+# github.com/prometheus/prometheus, vendored into promtail (shared scrape-config/service-
+# discovery code with the Prometheus project). Fixed upstream; not yet picked up.
+# Affects: grafana/promtail:3.6.11
+CVE-2026-42151
+CVE-2026-42154
+
+# golang.org/x/crypto, vendored into promtail transitively (its Docker/Kubernetes
+# service-discovery client dependencies pull in x/crypto/ssh even though this stack only uses
+# docker_sd_configs) and into jaeger (Task #94/Phase 4) via its own transitive dependencies.
+# Fixed upstream; not yet picked up by either.
+# Affects: grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
+CVE-2026-39828
+CVE-2026-39829
+CVE-2026-39830
+CVE-2026-39831
+CVE-2026-39832
+CVE-2026-39835
+CVE-2026-42508
+CVE-2026-46595
+CVE-2026-46597
+CVE-2026-56854
+
+# golang.org/x/text, vendored into promtail and into jaeger (Task #94/Phase 4). Fixed
+# upstream; not yet picked up by either.
+# Affects: grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
+CVE-2026-56851
+CVE-2026-56852
+
+# google.golang.org/grpc, vendored into promtail and into jaeger (Task #94/Phase 4, which
+# also adds one CRITICAL CVE on this same package beyond promtail's three). Fixed upstream;
+# not yet picked up by either.
+# Affects: grafana/promtail:3.6.11, jaegertracing/all-in-one:1.76.0
+CVE-2026-33186
+CVE-2026-84304
+CVE-2026-84445
+GHSA-hrxh-6v49-42gf
+
+# -----------------------------------------------------------------------------------------
+# The three blocks below are jaegertracing/all-in-one:1.76.0-only (Task #94/Phase 4), found
+# at its own current real latest release -- same "fixed upstream, not yet in a republished
+# image" situation as the rest of this file.
+# -----------------------------------------------------------------------------------------
+
+# github.com/apache/thrift, vendored by jaeger for its legacy Thrift-protocol collector
+# support (the Compose service here only ever receives OTLP, never Thrift, but the binary
+# still links the library). Fixed upstream; not yet picked up.
+# Affects: jaegertracing/all-in-one:1.76.0
+CVE-2026-41602
+CVE-2026-43871
+
+# go.opentelemetry.io/otel and go.opentelemetry.io/otel/sdk, vendored by jaeger for its own
+# internal telemetry/instrumentation (separate from the application-facing OTLP receiver
+# this Task relies on). Fixed upstream; not yet picked up.
+# Affects: jaegertracing/all-in-one:1.76.0
+CVE-2026-29181
+CVE-2026-24051
+CVE-2026-39883
+
+# -----------------------------------------------------------------------------------------
+# Below: compose-backend (python:3.15-slim, Debian 13/trixie base -- Issue #126, Phase 6).
+# Same "fixed upstream, not yet in a republished image" situation as the rest of this file:
+# Debian's security team has not published a patched trixie package for any of these yet
+# (confirmed via `trivy image compose-backend`, Status: affected), so there is no apt package
+# to install on top of the base image today. libzstd1's CVE-2026-124851 was the one exception
+# with a patch already published in Debian's repo -- backend/Dockerfile now installs it
+# explicitly (`apt-get install ... libzstd1`) alongside curl so the build picks it up, rather
+# than waiting on python:3.15-slim's own rebuild like the rest of this block.
+# -----------------------------------------------------------------------------------------
+
+# util-linux and its split binary packages (bsdutils, libblkid1, liblastlog2-2, libmount1,
+# libsmartcols1, libuuid1, login, mount) -- Affects: compose-backend
+CVE-2026-76642
+CVE-2026-78408
+CVE-2026-78409
+CVE-2026-78410
+
+# curl/libcurl4t64 -- Affects: compose-backend
+CVE-2026-12064
+CVE-2026-8458
+
+# libacl1 -- Affects: compose-backend
+CVE-2026-54369
+
+# ncurses (libncursesw6, libtinfo6, ncurses-base, ncurses-bin) -- Affects: compose-backend
+CVE-2025-69720
+
+# sqlite3 (libsqlite3-0) -- Affects: compose-backend
+CVE-2026-119373
+CVE-2026-119374
+CVE-2026-119379
+
+# openssl (libssl3t64, openssl-provider-legacy) -- Affects: compose-backend
+CVE-2026-107494
+CVE-2026-124709
+
+# systemd (libsystemd0, libudev1) -- Affects: compose-backend
+CVE-2026-16742
+
+# perl-base -- Debian's security team has explicitly deferred this fix for trixie (Status:
+# fix_deferred, not just "no package yet"), so there is nothing to pick up even on a future
+# python:3.15-slim rebuild until Debian revisits it.
+# Affects: compose-backend
+CVE-2026-9538
+
+# -----------------------------------------------------------------------------------------
+# pip's own vendored dependencies (pip/_vendor/bom.cdx.json inside the image, generated by
+# the `vendoring` tool when pip 26.2.2 itself was released) -- not the top-level msgpack/
+# urllib3 this project's own requirements resolve (those are newer, already-patched versions:
+# msgpack 1.2.4, urllib3 2.8.0, confirmed clean by this same scan), and not `setuptools` as an
+# installed package at all (it isn't one in this image). pip only uses its vendored copies
+# internally during `pip install` at image-build time; the Django application never imports
+# pip or anything under pip._vendor at runtime. Fixed upstream in each of these three
+# projects; pip's own vendor bundle only picks up the newer versions on pip's next release,
+# which python:3.15-slim then has to repackage in turn -- same "fixed upstream, not yet
+# republished" shape as the rest of this file, just one layer removed.
+# Affects: compose-backend
+# -----------------------------------------------------------------------------------------
+CVE-2026-114613
+GHSA-6v7p-g79w-8964
+CVE-2025-47273
+CVE-2026-97687
+CVE-2026-97689

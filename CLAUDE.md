@@ -25,6 +25,16 @@ coupling traceable by grep, not to explain what the code does. Applies starting 
 (Backend/Frontend Foundation) once real application code exists; nothing to apply yet during
 Phase 0-5 (infrastructure/docs only).
 
+## Research before implementing
+
+Before starting work on a new feature or task, identify the specific product(s)/technology
+involved and look up its current, up-to-date best practices (official docs, the current
+stable version's recommended patterns) before writing code. If that research shows an
+in-progress or already-chosen approach is outdated, refactor to the better one before
+continuing execution rather than shipping the outdated pattern and fixing it later. This
+applies to every new feature from here on — get full context on the relevant
+product/technology first, then implement.
+
 ## No AI signatures, anywhere
 
 The repository must read as the output of a professional engineering team, not of an AI
@@ -56,6 +66,9 @@ Redis, RabbitMQ, Nginx) healthy, observability, backup/restore tested, security 
 - `preview` — Renovate/Dependabot landing branch, never merges directly to `main`.
 - Branch names: `feature/ISSUE-<n>-<slug>`, `infrastructure/...`, `bugfix/...`, `hotfix/...`,
   `security/...`, `refactor/...`, `docs/...`.
+- Delete a branch as soon as its PR merges (`gh pr merge --delete-branch` or equivalent) —
+  a merged branch has no reason to keep existing. Never delete `main`/`test`/`preview` or any
+  branch with a currently open PR (e.g. Renovate branches targeting `preview`).
 
 ## Other hard rules (from master prompt §18)
 
@@ -74,6 +87,10 @@ GitHub (closed immediately if already acted on in-session, open/`Ready` if defer
 keep working. This gives every real decision a durable, English, searchable record instead of
 leaving it only in chat scrollback. Trivial replies, status checks, or "go ahead" messages
 don't need an Issue.
+
+If the directive is a genuine emergency, don't just log and queue it like a normal deferred
+directive: finish the task currently in progress, then immediately start and resolve the new
+emergency Issue before resuming other queued work.
 
 ## Real-world / GitHub actions
 

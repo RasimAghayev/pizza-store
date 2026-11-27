@@ -1,0 +1,61 @@
+# edge-net equivalent (Issue #158's overlay-network naming): nginx accepts traffic from
+# anywhere (it is the cluster's entry point, fronted by the Ingress controller); frontend/
+# backend accept traffic only from nginx -- nothing outside this chart's own nginx Pods can
+# reach them directly, matching infrastructure/compose/docker-compose.yml's edge-net
+# membership exactly (nginx + backend only, frontend is also edge-net-only there).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-allow-ingress-to-nginx
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: nginx
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-allow-nginx-to-frontend
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: nginx
+      ports:
+        - protocol: TCP
+          port: {{ .Values.ports.frontend }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-allow-nginx-to-backend
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: nginx
+      ports:
+        - protocol: TCP
+          port: {{ .Values.ports.backend }}

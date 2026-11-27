@@ -1,0 +1,19 @@
+.error-display {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  border-radius: 4px;
+}
+
+.error-display__title {
+  margin: 0;
+  font: var(--mat-sys-title-medium);
+}
+
+.error-display__message {
+  margin: 0;
+  font: var(--mat-sys-body-medium);
+}

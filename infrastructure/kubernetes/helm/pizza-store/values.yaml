@@ -1,0 +1,134 @@
+# Every value below is a placeholder/example (never a real credential) so `helm lint` and
+# `helm template` succeed with zero real input (Issue #159) -- same philosophy as
+# infrastructure/terraform/aws/variables.tf (Issue #160). Override via a real values file
+# (gitignored) before installing against anything beyond the local `kind` validation
+# cluster this Task's evidence was captured against.
+
+# Image tags match infrastructure/compose/docker-compose.yml /
+# infrastructure/swarm/docker-stack.yml exactly -- same versions, same compatibility
+# guarantees already validated there.
+images:
+  backend:
+    repository: pizza-store-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: pizza-store-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  nginx:
+    repository: nginxinc/nginx-unprivileged
+    tag: "1.27-alpine"
+    pullPolicy: IfNotPresent
+  postgres:
+    repository: postgres
+    tag: "16-alpine"
+    pullPolicy: IfNotPresent
+  mongodb:
+    repository: mongo
+    tag: "7"
+    pullPolicy: IfNotPresent
+  redis:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+  rabbitmq:
+    repository: rabbitmq
+    tag: "3-management-alpine"
+    pullPolicy: IfNotPresent
+
+replicaCount:
+  backend: 2
+  frontend: 2
+  nginx: 2
+
+# Stateful components stay at 1 replica -- same reason Issue #158 constrains Swarm replicas:
+# no built-in multi-replica data coordination for these engines at this project's scope.
+# A StatefulSet's volumeClaimTemplate gives each replica its own PVC, so even requesting >1
+# here would not produce a coordinated cluster -- it would silently produce N independent,
+# diverging data copies. Not raised without a real replication strategy (e.g. Patroni for
+# PostgreSQL, a Mongo replica set) to go with it.
+
+resources:
+  backend:
+    requests: {cpu: "250m", memory: "256Mi"}
+    limits: {cpu: "1000m", memory: "512Mi"}
+  frontend:
+    requests: {cpu: "100m", memory: "128Mi"}
+    limits: {cpu: "500m", memory: "256Mi"}
+  nginx:
+    requests: {cpu: "50m", memory: "64Mi"}
+    limits: {cpu: "500m", memory: "128Mi"}
+  postgres:
+    requests: {cpu: "250m", memory: "256Mi"}
+    limits: {cpu: "1000m", memory: "512Mi"}
+  mongodb:
+    requests: {cpu: "250m", memory: "256Mi"}
+    limits: {cpu: "1000m", memory: "512Mi"}
+  redis:
+    requests: {cpu: "100m", memory: "128Mi"}
+    limits: {cpu: "500m", memory: "256Mi"}
+  rabbitmq:
+    requests: {cpu: "250m", memory: "256Mi"}
+    limits: {cpu: "1000m", memory: "512Mi"}
+
+# Sized for this project's documented synthetic-dataset scale (master prompt §10), not
+# real production volume -- same sizing philosophy as ADR 0007's VPS baseline.
+persistence:
+  postgres:
+    size: 1Gi
+  mongodb:
+    size: 1Gi
+  redis:
+    size: 256Mi
+  rabbitmq:
+    size: 256Mi
+
+ports:
+  backend: 8000
+  frontend: 8080
+  nginx: 8080
+  postgres: 5432
+  mongodb: 27017
+  redis: 6379
+  rabbitmq: 5672
+
+# Placeholder credentials -- never a real value. A real install would supply these via
+# `--set` or a separate, gitignored values file, exactly like .env/secrets files already
+# gitignored for the Compose stack.
+secrets:
+  postgresDb: pizza_store
+  postgresUser: pizza_store
+  postgresPassword: "changeme-helm-values-placeholder"
+  mongoRootUsername: pizza_store
+  mongoRootPassword: "changeme-helm-values-placeholder"
+  redisPassword: "changeme-helm-values-placeholder"
+  rabbitmqUser: pizza_store
+  rabbitmqPassword: "changeme-helm-values-placeholder"
+  djangoSecretKey: "changeme-helm-values-placeholder-django-secret-key"
+  jwtPrivateKey: "changeme-helm-values-placeholder-jwt-private-key"
+
+# Ingress host is a placeholder -- never a real, owned domain. Assumes the ingress-nginx
+# controller (the most widely deployed Ingress controller) is already installed on the
+# cluster; this chart does not install it (documented assumption, not a dependency this
+# Task installs -- see docs/deployment/kubernetes.md).
+ingress:
+  enabled: true
+  className: nginx
+  host: pizza-store.local
+
+# Matches DJANGO_CORS_ALLOWED_ORIGINS in .env.example -- comma-separated, never "*"
+# (ADR 0006: CORS_ALLOW_CREDENTIALS=True forbids pairing with a wildcard origin).
+djangoCorsAllowedOrigins: "http://pizza-store.local"
+
+autoscaling:
+  backend:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+  frontend:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70

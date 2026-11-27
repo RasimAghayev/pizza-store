@@ -50,6 +50,16 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
+      - name: Generate CI-only .env
+        run: cp .env.example .env
+
+      # Services declared with `image:` (postgres, mongo, ...) are scanned via Trivy's direct
+      # registry pull below and need nothing here. Services declared with `build:` (e.g.
+      # `backend`) have no registry image to pull — `compose build` with no args only builds
+      # services that define `build:`, so this is a no-op for every other matrix entry.
+      - name: Build locally-built Compose images
+        run: docker compose -f "$COMPOSE_FILE" --env-file .env build
+
       - name: Derive a filesystem-safe name for this image
         id: safe-name
         env:

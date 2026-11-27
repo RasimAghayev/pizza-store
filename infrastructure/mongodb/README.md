@@ -32,4 +32,11 @@ docker compose -f infrastructure/compose/docker-compose.yml exec -T mongodb \
   mongorestore --username ${MONGO_INITDB_ROOT_USERNAME:-pizza_store} --authenticationDatabase admin --archive < backup.archive
 ```
 
+**Monitoring user** (Phase 4, Task #92): `infrastructure/mongodb/init/01-create-exporter-user.sh`
+creates a dedicated `mongodb_exporter` user (`clusterMonitor` on `admin`, `read` on `local`)
+during the entrypoint's unauthenticated init phase — the same phase that creates the
+`MONGO_INITDB_ROOT_*` user — so `mongodb-exporter` (see `infrastructure/monitoring/README.md`)
+never authenticates as root.
+
 > Status: Phase 2 — Compose service defined and healthy; collections/schemas arrive in Phase 6.
+> Phase 4 adds a monitoring-only user via an init script; no other change to this service.

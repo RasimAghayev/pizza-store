@@ -1,0 +1,7 @@
+# Force LF regardless of a checkout machine's core.autocrlf setting. Without this,
+# Windows checkouts with core.autocrlf=true convert these to CRLF, which silently
+# corrupts any file whose bytes are read verbatim by a shell `$(cat ...)` substitution
+# (a trailing \r survives command substitution's own trailing-\n stripping) — discovered
+# while validating Task #92's secret-reading wrappers.
+infrastructure/compose/secrets/*.txt.example text eol=lf
+*.sh text eol=lf

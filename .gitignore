@@ -33,6 +33,12 @@ infrastructure/compose/secrets/*.txt
 # Docker
 *.log
 
+# Backup archives (Task #96) -- data, never committed
+/backups/
+
+# Synthetic dataset output (Task #111) -- generated, never committed
+/data/synthetic/
+
 # OS / IDE
 .DS_Store
 Thumbs.db
@@ -43,3 +49,13 @@ Thumbs.db
 # Build artifacts
 coverage/
 build/
+
+# Terraform (Issue #160) -- local plan/state artifacts and real variable files, never
+# committed; the AWS skeleton is validated-only (no backend configured, nothing applied)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log

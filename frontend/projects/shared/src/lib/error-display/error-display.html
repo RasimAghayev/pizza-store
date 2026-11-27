@@ -1,0 +1,7 @@
+<div class="error-display" role="alert">
+  <p class="error-display__title">{{ title() }}</p>
+  <p class="error-display__message">{{ message() }}</p>
+  @if (dismissible()) {
+    <button mat-button type="button" (click)="dismissed.emit()">Dismiss</button>
+  }
+</div>

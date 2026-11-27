@@ -45,19 +45,153 @@ jobs:
   backend-quality:
     name: Backend quality (lint/format/type-check/unit tests)
     runs-on: ubuntu-latest
+    # Activated by Phase 5 (Task #108) ahead of Phase 6's real modules -- lightweight
+    # job-level postgres/redis/rabbitmq services are enough for the pytest-django run here,
+    # not the full Compose stack (that's what integration-validation.yml's compose-validate
+    # job is for). redis added by Issue #129: DRF's ScopedRateThrottle (apps/identity/api)
+    # requires a reachable cache backend on every request to the endpoints it guards, not
+    # just the dedicated rate-limit test. rabbitmq added by Issue #130: the real Outbox/
+    # idempotent-consumer integration test needs a real broker; no credentials are set on the
+    # service container, relying on RabbitMQ's own default guest/guest + loopback-only rule
+    # (this job's services are reachable via localhost on the runner).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: pizza_store
+          POSTGRES_USER: pizza_store
+          POSTGRES_PASSWORD: pizza_store
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pizza_store -d pizza_store"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_DB: pizza_store
+      POSTGRES_USER: pizza_store
+      POSTGRES_PASSWORD: pizza_store
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
+      RABBITMQ_HOST: localhost
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+    defaults:
+      run:
+        working-directory: backend
     steps:
-      # job-level `if` can't call hashFiles(); the guard lives on the step instead.
-      # Inert until Phase 6 (Epic #10) adds backend/ — self-activates with no workflow edit.
-      - name: Placeholder (active once backend/ exists)
-        if: ${{ hashFiles('backend/**') != '' }}
-        run: echo "backend/ detected — wire ruff/black/mypy/pytest here (Phase 6)."
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Install backend dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Black
+        run: black --check .
+
+      - name: Mypy
+        run: mypy .
+
+      - name: Pytest
+        run: pytest
 
   frontend-quality:
-    name: Frontend quality (lint/format/type-check/unit tests)
+    name: Frontend quality (lint/format/type-check/unit tests/e2e)
     runs-on: ubuntu-latest
+    # Activated by Phase 5 (Task #109) against a throwaway smoke-app; Issue #138 replaced it
+    # with the real customer-web/management-web/courier-web apps + shared lib. The
+    # frontend/e2e/ Playwright harness (permanent since Task #109) now exercises customer-web.
+    defaults:
+      run:
+        working-directory: frontend
     steps:
-      # job-level `if` can't call hashFiles(); the guard lives on the step instead.
-      # Inert until Phase 7 (Epic #11) adds frontend/ — self-activates with no workflow edit.
-      - name: Placeholder (active once frontend/ exists)
-        if: ${{ hashFiles('frontend/**') != '' }}
-        run: echo "frontend/ detected — wire eslint/prettier/tsc/jest here (Phase 7)."
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5.0.0
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier
+        run: npx prettier --check .
+
+      - name: TypeScript (e2e harness)
+        run: npm run typecheck
+
+      # Apps resolve `shared` via tsconfig.json's "paths" -> "./dist/shared" (classic Angular
+      # CLI multi-project library resolution), so the library must be built before any app --
+      # see frontend/tsconfig.json.
+      - name: Build shared library
+        run: npx ng build shared
+
+      - name: Build customer-web (full Angular template type-check)
+        run: npx ng build customer-web
+
+      - name: Build management-web (full Angular template type-check)
+        run: npx ng build management-web
+
+      - name: Build courier-web (full Angular template type-check)
+        run: npx ng build courier-web
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright e2e
+        run: npm run e2e
+
+  dataset-generation:
+    name: Dataset generation (smoke tier)
+    runs-on: ubuntu-latest
+    # Activated by Phase 5 (Task #112) -- the routine CI check that scripts/dataset/generate.py
+    # and verify.py keep working. The integration/load tiers are deliberately never run here
+    # (master prompt §10: "must not overload CI"); they're only proven locally as PR evidence.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Install dataset generator dependencies
+        run: pip install -r scripts/dataset/requirements.txt
+
+      - name: Generate and verify the smoke tier
+        run: python scripts/dataset/generate.py --tier smoke --output-dir /tmp/dataset-smoke --verify

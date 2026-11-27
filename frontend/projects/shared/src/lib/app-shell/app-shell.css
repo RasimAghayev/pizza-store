@@ -1,0 +1,48 @@
+.app-shell {
+  min-height: 100vh;
+}
+
+/*
+ * Standard skip-link pattern: placed before the mat-sidenav-container (not inside any
+ * landmark) so it is the very first Tab stop, letting a keyboard/screen-reader user bypass
+ * the nav entirely. Off-screen until :focus-visible, per WCAG 2.4.1 (Bypass Blocks).
+ */
+.app-shell__skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  transition: top 0.2s ease-in-out;
+}
+
+.app-shell__skip-link:focus-visible {
+  top: 0;
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+}
+
+/* Mobile-first: base styles target the narrowest (handset, "over" mode) viewport. */
+.app-shell__nav {
+  width: min(85vw, 280px);
+}
+
+.app-shell__title {
+  margin-left: 0.5rem;
+}
+
+.app-shell__content {
+  padding: 1rem;
+}
+
+@media (min-width: 600px) {
+  .app-shell__nav {
+    width: 240px;
+  }
+
+  .app-shell__content {
+    padding: 1.5rem;
+  }
+}

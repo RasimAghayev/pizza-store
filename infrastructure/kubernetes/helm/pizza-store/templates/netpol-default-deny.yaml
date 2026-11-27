@@ -1,0 +1,15 @@
+# Namespace-wide default-deny on ingress -- every Pod this selector matches (podSelector: {}
+# = every Pod in the namespace) accepts no inbound traffic unless an explicit allow policy
+# in netpol-allow-edge.yaml / netpol-allow-data.yaml grants it. Mirrors the deny-by-default
+# posture proven for real on Swarm's overlay networks (Issue #158's DNS-resolution-failure
+# test) at the Kubernetes NetworkPolicy layer instead.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-default-deny-ingress
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress

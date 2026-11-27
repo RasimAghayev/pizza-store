@@ -1,0 +1,87 @@
+# data-net equivalent (Issue #158's overlay-network naming): postgres/mongodb/redis/rabbitmq
+# accept traffic only from backend -- this is the specific isolation Issue #159's Acceptance
+# Criteria requires proving with a real kubectl exec test (nginx -> postgres must fail,
+# backend -> postgres must succeed; see docs/deployment/kubernetes.md's Validation evidence).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-allow-backend-to-postgres
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.ports.postgres }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-allow-backend-to-mongodb
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: mongodb
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.ports.mongodb }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-allow-backend-to-redis
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.ports.redis }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-allow-backend-to-rabbitmq
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: rabbitmq
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.ports.rabbitmq }}

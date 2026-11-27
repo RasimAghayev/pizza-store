@@ -27,11 +27,21 @@ jobs:
         run: semgrep scan --config p/ci --config p/dockerfile --config p/github-actions --error --metrics=off .
 
   bandit:
-    name: Bandit (Python SAST, placeholder)
+    name: Bandit (Python SAST)
     runs-on: ubuntu-latest
     steps:
-      # job-level `if` can't call hashFiles(); the guard lives on the step instead.
-      # Inert until Phase 6 (Epic #10) adds backend/ — self-activates with no workflow edit.
-      - name: Placeholder (active once backend/ exists)
-        if: ${{ hashFiles('backend/**') != '' }}
-        run: echo "backend/ detected — wire bandit -r backend/ here (Phase 6)."
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Install Bandit
+        run: pip install bandit==1.9.4
+
+      # Activated by Phase 5 (Task #108) ahead of Phase 6's real modules. The glob covers
+      # every module's tests/ dir (backend/health, backend/apps/<domain>, ...) so adding a
+      # new module never needs a matching edit here -- bandit's B101 (assert) and B105/B106
+      # (hardcoded test fixture passwords) findings are expected and fine in test code.
+      - name: Run Bandit
+        run: bandit -r backend/ -x "backend/*/tests/*,backend/.venv"

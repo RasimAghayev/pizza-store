@@ -1,0 +1,29 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+# calls POST /loki/api/v1/push on loki -- see infrastructure/logging/loki-config.yml
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      # Read-only Docker socket, used only for container discovery (listing running
+      # containers and their labels) -- never for starting/stopping/creating containers.
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # Docker Compose always sets this label to the exact service key
+      # (docker-compose.yml's "postgres", "mongodb", "loki", ...) -- more robust than
+      # parsing the generated container name, which carries the compose project/replica
+      # suffix instead (e.g. "compose-postgres-1"), a real mismatch found while validating
+      # this Task (the audit-log panel's {container=~"postgres|mongodb"} query returned no
+      # results against the raw container name).
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_service"]
+        target_label: "container"
+      - source_labels: ["__meta_docker_container_log_stream"]
+        target_label: "stream"

@@ -1,0 +1,610 @@
+# Docker Swarm translation of infrastructure/compose/docker-compose.yml (Issue #158, ADR
+# 0007 "Swarm before Kubernetes"). See docs/deployment/swarm.md for the full deployment
+# procedure, validation evidence, and the limitations noted inline below.
+#
+# `docker stack deploy` does NOT auto-load a .env file next to this one the way `docker
+# compose` does -- it substitutes ${VAR} from the invoking shell's own exported environment
+# instead. Export infrastructure/compose/.env into the shell before deploying (real finding,
+# not an assumption: pre-rendering through `docker compose config` first and feeding *that*
+# output to `docker stack deploy` seems like the obvious workaround, but `compose config`
+# re-serializes `deploy.resources.limits.cpus` as a bare YAML float -- e.g. `cpus: 0.5` instead
+# of the required string `cpus: "0.5"` -- which `docker stack deploy` then rejects outright):
+#
+#   set -a; source infrastructure/compose/.env; set +a
+#   docker stack deploy -c infrastructure/swarm/docker-stack.yml pizza-store
+#
+# Stateful services (postgres/mongodb/redis/rabbitmq/prometheus/alertmanager/grafana/loki) are
+# pinned to one node via a placement constraint: Swarm's default `local` volume driver has no
+# cross-node data sharing, so running more than one replica of any of these would each get an
+# independent, inconsistent volume -- not a limitation of this translation, a real property of
+# unmanaged Swarm volumes. A real multi-node cluster needs either a network-attached volume
+# driver (e.g. REX-Ray, a cloud block-storage plugin) or to keep accepting this one-node-per-
+# stateful-service shape. Before deploying, label the target node once:
+#   docker node update --label-add pizza-store.data=true <node-id>
+#
+# backend/frontend reference pre-built local images (Swarm never builds `build:` sections) --
+# build them first: `docker compose -f infrastructure/compose/docker-compose.yml build backend
+# frontend`. Single-node validation reuses the local image cache for free; a real multi-node
+# cluster would need a registry to push/pull these images to every node, which this
+# validation does not exercise (documented, not worked around).
+
+networks:
+  edge-net:
+    driver: overlay
+  data-net:
+    driver: overlay
+  monitoring-net:
+    driver: overlay
+
+volumes:
+  postgres-data:
+  mongodb-data:
+  redis-data:
+  rabbitmq-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  alertmanager-data:
+
+secrets:
+  postgres_password:
+    file: ../compose/secrets/postgres_password.txt
+  mongo_root_password:
+    file: ../compose/secrets/mongo_root_password.txt
+  redis_password:
+    file: ../compose/secrets/redis_password.txt
+  rabbitmq_password:
+    file: ../compose/secrets/rabbitmq_password.txt
+  grafana_admin_password:
+    file: ../compose/secrets/grafana_admin_password.txt
+  mongodb_exporter_password:
+    file: ../compose/secrets/mongodb_exporter_password.txt
+  redis_exporter_password:
+    file: ../compose/secrets/redis_exporter_password.txt
+  django_secret_key:
+    file: ../compose/secrets/django_secret_key.txt
+  jwt_private_key:
+    file: ../compose/secrets/jwt_private_key.txt
+
+# One Swarm config per real file rather than per directory -- Swarm configs are always
+# single-file objects, so a directory tree (e.g. Grafana's provisioning/dashboards) is
+# represented as several configs, each mounted at its own target path inside the container.
+# This is fully equivalent to the base Compose file's directory bind-mounts and, unlike a bind
+# mount, is portable to a real multi-node cluster (configs are distributed by Swarm itself,
+# not read from a host path that would need to exist identically on every node).
+configs:
+  nginx_default_conf:
+    file: ../nginx/conf.d/default.conf
+  prometheus_yml:
+    file: ../monitoring/prometheus/prometheus.yml
+  prometheus_alert_rules_yml:
+    file: ../monitoring/prometheus/alert-rules.yml
+  alertmanager_yml:
+    file: ../monitoring/alertmanager/alertmanager.yml
+  loki_config_yml:
+    file: ../logging/loki-config.yml
+  promtail_config_yml:
+    file: ../logging/promtail-config.yml
+  otel_collector_config_yml:
+    file: ../tracing/otel-collector-config.yml
+  mongodb_create_exporter_user_sh:
+    file: ../mongodb/init/01-create-exporter-user.sh
+  grafana_provisioning_dashboards_yml:
+    file: ../monitoring/grafana/provisioning/dashboards/dashboards.yml
+  grafana_provisioning_datasource_loki_yml:
+    file: ../monitoring/grafana/provisioning/datasources/loki.yml
+  grafana_provisioning_datasource_prometheus_yml:
+    file: ../monitoring/grafana/provisioning/datasources/prometheus.yml
+  grafana_dashboard_audit_log_json:
+    file: ../monitoring/grafana/dashboards/audit-log.json
+  grafana_dashboard_business_metrics_json:
+    file: ../monitoring/grafana/dashboards/business-metrics-placeholder.json
+  grafana_dashboard_infrastructure_health_json:
+    file: ../monitoring/grafana/dashboards/infrastructure-health.json
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    command: ["postgres", "-c", "log_connections=on", "-c", "log_disconnections=on", "-c", "log_statement=ddl"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - data-net
+    ports:
+      - target: 5432
+        published: ${POSTGRES_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.pizza-store.data == true]
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  mongodb:
+    image: mongo:7
+    command: ["--auth", "--setParameter", "logComponentVerbosity={\"accessControl\":{\"verbosity\":1}}"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongo_root_password
+    secrets:
+      - mongo_root_password
+      - mongodb_exporter_password
+    configs:
+      - source: mongodb_create_exporter_user_sh
+        target: /docker-entrypoint-initdb.d/01-create-exporter-user.sh
+        mode: 0555
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - data-net
+    ports:
+      - target: 27017
+        published: ${MONGO_PORT}
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.pizza-store.data == true]
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      sh -c 'redis-server --requirepass "$$(cat /run/secrets/redis_password | tr -d "\r")" --appendonly yes'
+    secrets:
+      - redis_password
+    volumes:
+      - redis-data:/data
+    networks:
+      - data-net
+    ports:
+      - target: 6379
+        published: ${REDIS_PORT}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'redis-cli --no-auth-warning -a "$$(cat /run/secrets/redis_password | tr -d "\r")" ping | grep -q PONG'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.pizza-store.data == true]
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+    command: >
+      sh -c 'export RABBITMQ_DEFAULT_PASS="$$(cat /run/secrets/rabbitmq_password | tr -d "\r")" &&
+      rabbitmq-plugins enable --offline rabbitmq_prometheus &&
+      exec docker-entrypoint.sh rabbitmq-server'
+    secrets:
+      - rabbitmq_password
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - data-net
+      - monitoring-net
+    ports:
+      - target: 5672
+        published: ${RABBITMQ_PORT}
+      - target: 15672
+        published: ${RABBITMQ_MANAGEMENT_PORT}
+      - target: 15692
+        published: ${RABBITMQ_PROMETHEUS_PORT}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.pizza-store.data == true]
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  # --- Backend / frontend / edge --------------------------------------------------------
+  # Pre-built images only (see the file header) -- replicated at 2 to exercise a real
+  # rolling update and Swarm's routing-mesh load balancing, master prompt §8's explicit ask.
+
+  backend:
+    image: pizza-store-backend:latest
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER}
+      DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS}
+    secrets:
+      - django_secret_key
+      - postgres_password
+      - redis_password
+      - rabbitmq_password
+      - jwt_private_key
+    networks:
+      - data-net
+      - edge-net
+    ports:
+      - target: 8000
+        published: ${BACKEND_PORT}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  frontend:
+    image: pizza-store-frontend:latest
+    networks:
+      - edge-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+  nginx:
+    image: nginxinc/nginx-unprivileged:1.27-alpine
+    configs:
+      - source: nginx_default_conf
+        target: /etc/nginx/conf.d/default.conf
+    networks:
+      - edge-net
+    ports:
+      - target: 8080
+        published: ${NGINX_HTTP_PORT}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+
+  # --- Observability stack (Phase 4) -----------------------------------------------------
+
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    configs:
+      - source: prometheus_yml
+        target: /etc/prometheus/prometheus.yml
+      - source: prometheus_alert_rules_yml
+        target: /etc/prometheus/alert-rules.yml
+    volumes:
+      - prometheus-data:/prometheus
+    networks:
+      - monitoring-net
+    ports:
+      - target: 9090
+        published: ${PROMETHEUS_PORT}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.pizza-store.data == true]
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  alertmanager:
+    image: prom/alertmanager:v0.35.1
+    configs:
+      - source: alertmanager_yml
+        target: /etc/alertmanager/alertmanager.yml
+    volumes:
+      - alertmanager-data:/alertmanager
+    networks:
+      - monitoring-net
+    ports:
+      - target: 9093
+        published: ${ALERTMANAGER_PORT}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.pizza-store.data == true]
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+  grafana:
+    image: grafana/grafana:13.3.2
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+    secrets:
+      - grafana_admin_password
+    configs:
+      - source: grafana_provisioning_dashboards_yml
+        target: /etc/grafana/provisioning/dashboards/dashboards.yml
+      - source: grafana_provisioning_datasource_loki_yml
+        target: /etc/grafana/provisioning/datasources/loki.yml
+      - source: grafana_provisioning_datasource_prometheus_yml
+        target: /etc/grafana/provisioning/datasources/prometheus.yml
+      - source: grafana_dashboard_audit_log_json
+        target: /var/lib/grafana/dashboards/audit-log.json
+      - source: grafana_dashboard_business_metrics_json
+        target: /var/lib/grafana/dashboards/business-metrics-placeholder.json
+      - source: grafana_dashboard_infrastructure_health_json
+        target: /var/lib/grafana/dashboards/infrastructure-health.json
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - monitoring-net
+    ports:
+      - target: 3000
+        published: ${GRAFANA_PORT}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.pizza-store.data == true]
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.21.1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        export DATA_SOURCE_NAME="postgresql://${POSTGRES_USER}:$$(cat /run/secrets/postgres_password |
+        tr -d '\r')@postgres:5432/${POSTGRES_DB}?sslmode=disable" &&
+        exec /bin/postgres_exporter
+    secrets:
+      - postgres_password
+    networks:
+      - data-net
+      - monitoring-net
+    ports:
+      - target: 9187
+        published: ${POSTGRES_EXPORTER_PORT}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9187/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.54.0
+    command:
+      - --mongodb.uri=mongodb://mongodb_exporter:${MONGODB_EXPORTER_PASSWORD}@mongodb:27017/admin?authSource=admin
+      - --collector.diagnosticdata
+    networks:
+      - data-net
+      - monitoring-net
+    ports:
+      - target: 9216
+        published: ${MONGODB_EXPORTER_PORT}
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.99.0
+    command:
+      - -redis.addr=redis://redis:6379
+      - -redis.password-file=/run/secrets/redis_exporter_password
+    secrets:
+      - redis_exporter_password
+    networks:
+      - data-net
+      - monitoring-net
+    ports:
+      - target: 9121
+        published: ${REDIS_EXPORTER_PORT}
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+  # --- Logging & tracing ------------------------------------------------------------------
+
+  loki:
+    image: grafana/loki:3.7.10
+    configs:
+      - source: loki_config_yml
+        target: /etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+    networks:
+      - monitoring-net
+    ports:
+      - target: 3100
+        published: ${LOKI_PORT}
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.pizza-store.data == true]
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+  # Deployed `global` (one task per Swarm node), not `replicated` -- promtail reads the local
+  # Docker daemon socket and container log directory of whatever node it runs on, the same
+  # pattern as a Kubernetes DaemonSet. These two bind mounts stay host paths rather than Swarm
+  # configs deliberately: they are live runtime paths (the daemon socket, the live container
+  # log directory), not static config content, so they only make sense read from whichever
+  # node's own Docker daemon the task actually lands on.
+  promtail:
+    image: grafana/promtail:3.6.11
+    configs:
+      - source: promtail_config_yml
+        target: /etc/promtail/config.yml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - monitoring-net
+    deploy:
+      mode: global
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    networks:
+      - monitoring-net
+    ports:
+      - target: 16686
+        published: ${JAEGER_UI_PORT}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:16686/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.166.0
+    configs:
+      - source: otel_collector_config_yml
+        target: /etc/otelcol-contrib/config.yaml
+    networks:
+      - monitoring-net
+    ports:
+      - target: 4317
+        published: ${OTEL_COLLECTOR_GRPC_PORT}
+      - target: 4318
+        published: ${OTEL_COLLECTOR_HTTP_PORT}
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"

@@ -1,0 +1,113 @@
+# Third-party actions below are pinned to a full commit SHA, not a tag, per master-prompt
+# §9. The trailing `# vX.Y.Z` comment names the human-readable release the SHA corresponds
+# to; Renovate's `github-actions` manager tracks the pinned digest and opens an update PR
+# (targeting `preview`, per renovate.json) when a newer release is published.
+name: Backup and Restore Test
+
+on:
+  pull_request:
+    branches:
+      - test
+    paths:
+      - "scripts/backup-postgres.sh"
+      - "scripts/backup-mongodb.sh"
+      - "scripts/restore-postgres.sh"
+      - "scripts/restore-mongodb.sh"
+      - "infrastructure/compose/docker-compose.yml"
+      - ".github/workflows/backup-restore-test.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  COMPOSE_FILE: infrastructure/compose/docker-compose.yml
+
+jobs:
+  backup-restore:
+    name: Real backup/restore cycle (Postgres + MongoDB)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Generate CI-only secrets and .env
+        run: |
+          cp .env.example .env
+          for f in infrastructure/compose/secrets/*.txt.example; do
+            cp "$f" "${f%.example}"
+          done
+
+      - name: Bring up postgres and mongodb
+        run: docker compose -f "$COMPOSE_FILE" --env-file .env up -d postgres mongodb
+
+      - name: Wait for postgres/mongodb to become healthy
+        run: |
+          expected=2
+          timeout=90
+          interval=5
+          elapsed=0
+          while true; do
+            healthy=$(docker compose -f "$COMPOSE_FILE" --env-file .env ps postgres mongodb --format json \
+              | jq -s 'flatten | map(select(.Health == "healthy")) | length')
+            echo "Healthy: ${healthy}/${expected} (elapsed ${elapsed}s)"
+            if [ "$healthy" -eq "$expected" ]; then
+              exit 0
+            fi
+            if [ "$elapsed" -ge "$timeout" ]; then
+              docker compose -f "$COMPOSE_FILE" --env-file .env logs postgres mongodb
+              echo "Timed out waiting for postgres/mongodb to become healthy" >&2
+              exit 1
+            fi
+            sleep "$interval"
+            elapsed=$((elapsed + interval))
+          done
+
+      - name: Seed known data into both live databases
+        run: |
+          MARKER="ci-backup-restore-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}"
+          echo "MARKER=$MARKER" >> "$GITHUB_ENV"
+          docker compose -f "$COMPOSE_FILE" --env-file .env exec -T postgres sh -c \
+            "psql -U \"\$POSTGRES_USER\" \"\$POSTGRES_DB\" -v ON_ERROR_STOP=1 \
+            -c \"CREATE TABLE backup_verification (id serial primary key, note text); \
+            INSERT INTO backup_verification (note) VALUES ('$MARKER');\""
+          docker compose -f "$COMPOSE_FILE" --env-file .env exec -T mongodb sh -c \
+            "mongosh --quiet --username \"\$MONGO_INITDB_ROOT_USERNAME\" \
+            --password \"\$(cat /run/secrets/mongo_root_password | tr -d '\r')\" \
+            --authenticationDatabase admin --eval \
+            \"db.getSiblingDB('backup_verification').docs.insertOne({note: '$MARKER'})\""
+
+      - name: Run the real backup scripts
+        run: |
+          ./scripts/backup-postgres.sh
+          ./scripts/backup-mongodb.sh
+          echo "PG_BACKUP=$(ls -t backups/postgres/*.sql.gpg | head -1)" >> "$GITHUB_ENV"
+          echo "MONGO_BACKUP=$(ls -t backups/mongodb/*.archive.gpg | head -1)" >> "$GITHUB_ENV"
+
+      - name: Run the real restore scripts into disposable targets
+        run: |
+          ./scripts/restore-postgres.sh "$PG_BACKUP"
+          ./scripts/restore-mongodb.sh "$MONGO_BACKUP"
+
+      - name: Verify restored data matches the seeded marker
+        run: |
+          pg_result=$(docker exec pizza-store-restore-postgres psql -U postgres -d restore_verify -t -A \
+            -c "SELECT note FROM backup_verification WHERE note='$MARKER';")
+          if [ "$pg_result" != "$MARKER" ]; then
+            echo "Postgres restore verification FAILED (got: '$pg_result')" >&2
+            exit 1
+          fi
+          echo "Postgres restore verification passed."
+
+          mongo_result=$(docker exec pizza-store-restore-mongodb mongosh --quiet --eval \
+            "db.getSiblingDB('backup_verification').docs.findOne({note: '$MARKER'}).note")
+          if [ "$mongo_result" != "$MARKER" ]; then
+            echo "MongoDB restore verification FAILED (got: '$mongo_result')" >&2
+            exit 1
+          fi
+          echo "MongoDB restore verification passed."
+
+      - name: Clean up disposable restore targets and the Compose stack
+        if: always()
+        run: |
+          docker rm -f pizza-store-restore-postgres pizza-store-restore-mongodb || true
+          docker compose -f "$COMPOSE_FILE" --env-file .env down -v --remove-orphans
