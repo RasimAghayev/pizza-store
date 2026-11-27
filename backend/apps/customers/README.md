@@ -29,6 +29,13 @@ inside the same transaction. Every address lookup is scoped to the requesting cu
 `Customer` row; an id that exists but belongs to someone else returns 404, never 403, so a
 request can't distinguish "not yours" from "doesn't exist".
 
+`AddressService.get_owned_by_customer_id(customer_id, address_id) -> Address | None`
+(Issue #197) is a non-raising variant of `get_owned()` for a caller that already resolved
+`customer_id` itself and has no `user_id` to re-derive it through -- called by
+`apps.orders.services.order_service.OrderService.checkout()` (see
+`backend/apps/orders/README.md`) to snapshot the chosen delivery address onto the new
+`Order`; `orders` never imports `customers.models`/`repositories` directly (ADR 0004).
+
 `RegistrationService.register(email, password) -> Customer` calls
 `apps.identity.services.registration_service.RegistrationService.register()` -- see
 `backend/apps/identity/README.md`'s "inbound calls" section; `identity.User`/credential

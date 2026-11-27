@@ -45,4 +45,7 @@ urlpatterns = [
     # calls GET/POST/DELETE /api/v1/cart/ and PATCH/DELETE /api/v1/cart/items/<id>/ -- see
     # backend/apps/cart/api/views.py (Issue #196)
     path("api/<str:version>/cart/", include("apps.cart.api.urls")),
+    # calls POST /api/v1/orders/checkout/, GET /api/v1/orders/, GET /api/v1/orders/<id>/ --
+    # see backend/apps/orders/api/views.py (Issue #197)
+    path("api/<str:version>/orders/", include("apps.orders.api.urls")),
 ]
