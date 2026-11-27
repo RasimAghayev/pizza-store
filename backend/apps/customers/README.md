@@ -1,8 +1,33 @@
 # Customers
 
 Owns the customer bounded context: the `Customer` profile row (`user_id, created_at,
-consent_personal_data_at`) and self-registration (Issue #176). Profile fields (name/phone/DOB)
-and saved addresses are Issue #179's job, not this one.
+consent_personal_data_at, first_name, last_name, phone, date_of_birth`), saved `Address`
+rows, and self-registration (Issue #176).
+
+`phone`/`date_of_birth` (on `Customer`) and `street_and_unit` (on `Address`) are encrypted at
+rest via `shared/encryption/fields.py::EncryptedCharField`/`EncryptedDateField` (ADR 0006,
+Issue #179) -- a thin Fernet-based field built on the existing `cryptography` dependency
+rather than `django-cryptography`, which has had no release supporting Django 6 and no commit
+in years (checked at implementation time, per the research-before-implementing rule). The key
+is sourced from the `field_encryption_key` Compose secret (`make
+generate-field-encryption-key`), falling back to an ephemeral, process-local key when that
+secret is absent -- the same pattern `apps/identity/services/token_service.py` uses for the
+JWT signing key. `city`/`postal_code` on `Address` stay plaintext: they're needed for
+branch-matching queries and aren't sensitive alone. `latitude`/`longitude` are nullable --
+master prompt section 11 requires a manually-entered/map-picked address with no GPS
+coordinates to be just as valid as a GPS-derived one.
+
+`date_of_birth` additionally requires `consent_personal_data_at` to already be set --
+`services/profile_service.py::ProfileService.update_profile` rejects it otherwise
+(`ConsentRequiredError`); `ProfileService.record_consent` is the only way to set that
+timestamp, exposed as its own `POST .../consent/` action rather than an ordinary profile
+field edit, since consent is a one-way, auditable event.
+
+`services/address_service.py::AddressService` enforces "exactly one default address per
+customer" itself (not just a DB constraint): setting a new default clears every other one
+inside the same transaction. Every address lookup is scoped to the requesting customer's own
+`Customer` row; an id that exists but belongs to someone else returns 404, never 403, so a
+request can't distinguish "not yours" from "doesn't exist".
 
 `RegistrationService.register(email, password) -> Customer` calls
 `apps.identity.services.registration_service.RegistrationService.register()` -- see
@@ -26,6 +51,10 @@ ADR 0004.
 
 `api/` exposes `POST /api/v1/customers/register/` -- email/password in, `201 {"id": <customer
 id>}` out; a duplicate email returns the standard `validation_error` envelope
-(`docs/api/conventions.md`), not a 500.
+(`docs/api/conventions.md`), not a 500. Also `GET/PATCH /api/v1/customers/me/profile/`,
+`POST /api/v1/customers/me/profile/consent/`, `GET/POST /api/v1/customers/me/addresses/`, and
+`GET/PATCH/DELETE /api/v1/customers/me/addresses/<id>/` -- all ownership-only
+(`IsAuthenticated`, scoped to `request.user`'s own `Customer` row), no RBAC scope needed since
+this isn't a staff/branch concern.
 
 Publishes: `CustomerRegistered` (`customers.events` / `customer.registered.v1`).

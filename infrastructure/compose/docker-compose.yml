@@ -60,6 +60,12 @@ secrets:
   # The public key is derived in-process, never stored as a second secret.
   jwt_private_key:
     file: ./secrets/jwt_private_key.txt
+  # Fernet field-level encryption key (ADR 0006, Issue #179) -- generated via
+  # scripts/generate-field-encryption-key.py; read by
+  # backend/shared/encryption/fields.py to encrypt/decrypt DOB/phone/street-address columns
+  # at rest.
+  field_encryption_key:
+    file: ./secrets/field_encryption_key.txt
 
 services:
   postgres:
@@ -195,6 +201,7 @@ services:
       - redis_password
       - rabbitmq_password
       - jwt_private_key
+      - field_encryption_key
     depends_on:
       postgres:
         condition: service_healthy
