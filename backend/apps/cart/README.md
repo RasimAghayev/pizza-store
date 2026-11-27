@@ -99,10 +99,10 @@ item id that exists but belongs to a different customer's cart returns `404`, ne
 - `GET /api/v1/cart/` -- the customer's current cart, live-repriced. A customer with no
   cart (or only empty ones) gets `{"id": null, "branch_id": null, "items": [], "total":
   "0.00"}`, not a 404 -- the cart is a singleton resource from the client's point of view.
-- `POST /api/v1/cart/` -- add an item (`branch_id` + either `product_id` or `half_and_half`
-  + `option_choice_ids`/`topping_ids`/`quantity`/`note`). `409 conflict` if the customer's
-  existing non-empty cart is for a different branch; `400` if the product is not orderable
-  at this branch right now or the body doesn't supply exactly one of `product_id`/
+- `POST /api/v1/cart/` -- add an item (`branch_id`, either `product_id` or `half_and_half`,
+  and optionally `option_choice_ids`/`topping_ids`/`quantity`/`note`). `409 conflict` if the
+  customer's existing non-empty cart is for a different branch; `400` if the product is not
+  orderable at this branch right now or the body doesn't supply exactly one of `product_id`/
   `half_and_half`.
 - `DELETE /api/v1/cart/` -- clear the active cart (`204`). Also how a client complies with
   the `409` above before switching branches.
