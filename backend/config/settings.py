@@ -123,8 +123,8 @@ REST_FRAMEWORK = {
         # preserving the same request density (Issue #177, ADR 0006).
         "otp_request": "18/hour",
         "otp_confirm": "30/hour",
-        "password_reset_request": "18/hour",
-        "password_reset_confirm": "30/hour",
+        "password_reset_request": "18/hour",  # nosec B105 -- rate string, not a password
+        "password_reset_confirm": "30/hour",  # nosec B105 -- rate string, not a password
     },
 }
 
