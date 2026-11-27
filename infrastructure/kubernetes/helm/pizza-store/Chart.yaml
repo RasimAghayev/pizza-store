@@ -1,0 +1,10 @@
+apiVersion: v2
+name: pizza-store
+description: >-
+  Pizza Store platform -- backend/frontend/nginx edge plus postgres/mongodb/redis/rabbitmq
+  data stores, translated from infrastructure/compose/docker-compose.yml and
+  infrastructure/swarm/docker-stack.yml (Issue #158) into the Kubernetes/Helm manifest set
+  required by master prompt §8 (Issue #159).
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

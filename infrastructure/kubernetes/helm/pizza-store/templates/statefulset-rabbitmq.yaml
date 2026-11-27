@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "pizza-store.selectorLabels" (dict "root" . "component" "rabbitmq") | nindent 4 }}
+  ports:
+    - port: {{ .Values.ports.rabbitmq }}
+      targetPort: {{ .Values.ports.rabbitmq }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  serviceName: rabbitmq
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "pizza-store.selectorLabels" (dict "root" . "component" "rabbitmq") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pizza-store.selectorLabels" (dict "root" . "component" "rabbitmq") | nindent 8 }}
+    spec:
+      containers:
+        - name: rabbitmq
+          image: "{{ .Values.images.rabbitmq.repository }}:{{ .Values.images.rabbitmq.tag }}"
+          imagePullPolicy: {{ .Values.images.rabbitmq.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.ports.rabbitmq }}
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: {{ .Values.secrets.rabbitmqUser | quote }}
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: RABBITMQ_PASSWORD
+          volumeMounts:
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.resources.rabbitmq | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: rabbitmq-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.rabbitmq.size }}

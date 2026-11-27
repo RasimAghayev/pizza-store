@@ -1,0 +1,82 @@
+# Headless Service (stable per-pod DNS, required by StatefulSet) + StatefulSet for postgres.
+# replicas: 1 for the same reason infrastructure/swarm/docker-stack.yml (Issue #158) pins
+# postgres to one node -- no built-in multi-replica coordination at this project's scope.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "pizza-store.selectorLabels" (dict "root" . "component" "postgres") | nindent 4 }}
+  ports:
+    - port: {{ .Values.ports.postgres }}
+      targetPort: {{ .Values.ports.postgres }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "pizza-store.selectorLabels" (dict "root" . "component" "postgres") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pizza-store.selectorLabels" (dict "root" . "component" "postgres") | nindent 8 }}
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.images.postgres.repository }}:{{ .Values.images.postgres.tag }}"
+          imagePullPolicy: {{ .Values.images.postgres.pullPolicy }}
+          # args (not command) -- the postgres image's own ENTRYPOINT (docker-entrypoint.sh)
+          # must stay intact to run initdb using POSTGRES_USER/PASSWORD/DB below, exactly
+          # like infrastructure/swarm/docker-stack.yml's `command:` (Compose/Swarm `command:`
+          # also only replaces CMD, never ENTRYPOINT).
+          args: ["-c", "log_connections=on", "-c", "log_disconnections=on", "-c", "log_statement=ddl"]
+          ports:
+            - containerPort: {{ .Values.ports.postgres }}
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.secrets.postgresDb | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.secrets.postgresUser | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ .Values.secrets.postgresUser }}", "-d", "{{ .Values.secrets.postgresDb }}"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ .Values.secrets.postgresUser }}", "-d", "{{ .Values.secrets.postgresDb }}"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.resources.postgres | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.postgres.size }}

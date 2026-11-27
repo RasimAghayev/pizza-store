@@ -1,0 +1,39 @@
+# Mirrors infrastructure/nginx/conf.d/default.conf verbatim (Helm's .Files.Get cannot reach
+# outside this chart's own directory tree, so this is a deliberate copy, not a reference --
+# keep both in sync if the edge-routing rules ever change). Proxies to the `backend` and
+# `frontend` Services defined in deployment-backend.yaml / deployment-frontend.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-nginx-conf
+  labels:
+    {{- include "pizza-store.labels" . | nindent 4 }}
+data:
+  default.conf: |
+    server {
+        listen {{ .Values.ports.nginx }};
+        listen [::]:{{ .Values.ports.nginx }};
+        server_name _;
+
+        location /healthz {
+            access_log off;
+            return 200 "ok\n";
+            add_header Content-Type text/plain;
+        }
+
+        location /api/ {
+            proxy_pass http://backend:{{ .Values.ports.backend }}/api/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location / {
+            proxy_pass http://frontend:{{ .Values.ports.frontend }}/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
