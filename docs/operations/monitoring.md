@@ -12,10 +12,10 @@ complete Phase 4 stack (Task #98).
 
 | Surface | URL (local Compose) | What it shows |
 |---|---|---|
-| Grafana | `http://localhost:${GRAFANA_PORT:-3001}` | Dashboards: `infrastructure-health.json` (scrape-target status, Postgres/MongoDB/Redis connection metrics, RabbitMQ queue depth), `audit-log.json` (live Postgres/MongoDB audit events via the Loki datasource), `business-metrics-placeholder.json` (inert until Phase 6/7). Sign in with `admin` and the password in `infrastructure/compose/secrets/grafana_admin_password.txt`. |
+| Grafana | `http://localhost:${GRAFANA_PORT:-3001}` | Dashboards: `infrastructure-health.json` (scrape-target status, Postgres/MongoDB/Redis connection metrics, RabbitMQ queue depth), `audit-log.json` (live Postgres/MongoDB audit events via the Loki datasource), `business-metrics-placeholder.json` (inert until Phase 10+ adds order/revenue/delivery domain code — Phase 6/7 only built backend/frontend foundations, not business features). Sign in with `admin` and the password in `infrastructure/compose/secrets/grafana_admin_password.txt`. |
 | Prometheus | `http://localhost:${PROMETHEUS_PORT:-9090}` | Raw scrape targets (`/targets`), rule evaluation state (`/rules`), ad hoc PromQL (`/graph`). |
 | Alertmanager | `http://localhost:${ALERTMANAGER_PORT:-9093}` | Currently firing/resolved alerts and their routing. |
-| Jaeger | `http://localhost:${JAEGER_UI_PORT:-16686}` | Trace search/view. Empty until a real application emits spans (Phase 6/7) — storage is in-memory only, traces are lost on restart (documented limitation, not a bug). |
+| Jaeger | `http://localhost:${JAEGER_UI_PORT:-16686}` | Trace search/view. Still empty outside manual synthetic-span tests (confirmed during the Issue #167 Phase 9 Gate audit: no `opentelemetry` dependency or instrumentation exists anywhere in `backend/`/`frontend` yet) — no Task has wired real OpenTelemetry instrumentation into Django/Angular, and none is scheduled for a specific phase yet. Storage is in-memory only regardless, so traces are lost on restart (documented limitation, not a bug). |
 
 ## What is actually being monitored
 
