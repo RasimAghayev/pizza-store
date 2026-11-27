@@ -69,8 +69,7 @@ currently-available items) is `AllowAny`, same visibility as Branch/Product's ow
 paths. Every `/api/v1/menu/...` endpoint (categories and the staff item list/detail) is
 staff-only, authenticated via `TwoStepPermission` for both reads and writes — unlike
 Branch/Product, neither the category catalog nor the full (unfiltered) per-branch item list
-has a public read path of its own, the same staff-only precedent as `Organization` (Issue
-#180).
+has a public read path of its own, the same staff-only precedent as `Organization` (Issue #180).
 
 ## `api/` endpoints
 
