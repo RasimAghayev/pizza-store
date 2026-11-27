@@ -4,8 +4,12 @@ Owns authentication primitives: the custom `User` model (email as `USERNAME_FIEL
 separate username), the `Email` domain value object, credential verification
 (`AuthenticationService.verify_credentials`), and the JWT/refresh-token session lifecycle
 (`SessionService.login/refresh/logout`, `TokenService`, `RefreshToken` — ADR 0006, Issue #129).
-Registration goes through `RegistrationService.register`, which validates the email and
-delegates to `UserRepository`.
+Registration goes through `RegistrationService.register`, which validates the email, raises
+`EmailAlreadyRegisteredError` if it's already taken, and otherwise delegates to
+`UserRepository`. Called by `apps.customers.services.registration_service.RegistrationService`
+(Issue #176) -- the sanctioned entry point for `customers` to create the `identity.User` row
+behind a new customer account; `customers` never imports `identity.models`/`repositories`
+directly, per ADR 0004.
 
 Also owns RBAC (Issue #175, ADR 0006): `RoleAssignment` (`user, role_code, organization_id,
 branch_id`), the static `RoleCode`/`ROLE_PERMISSIONS` mapping

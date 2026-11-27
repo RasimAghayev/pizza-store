@@ -15,18 +15,26 @@ domain/business logic for a specific module (that belongs under `backend/apps/<m
     consuming module subclasses; its unique `(event_id, consumer_name)` constraint is what
     makes a redelivered event safe to process at most once.
   - `publisher.py` — `ConfirmedPublisher`, a publisher-confirmed `pika.BlockingConnection`
-    wrapper knowing nothing about Outbox rows or Django models.
+    wrapper knowing nothing about Outbox rows or Django models. `declare_exchange()` (Issue
+    #176) idempotently declares a durable topic exchange before the first publish to it --
+    exchange declaration is normally the consumer's job (`consumer.py::declare_topology`
+    below), but a module's first-ever published event has no consumer yet to have declared it
+    first.
   - `relay.py` — `relay_pending()`, the `SELECT ... FOR UPDATE SKIP LOCKED` poller that reads
     a concrete `AbstractOutboxEvent` subclass's pending rows and publishes them via
     `publisher.py`. Wired to `manage.py relay_outbox` by
-    `shared/management/commands/relay_outbox.py`; no real module calls it yet (no real event
-    exists before Phase 10) -- exercised directly by
-    `shared/tests/integration/test_outbox_and_idempotency.py`.
+    `shared/management/commands/relay_outbox.py`; first called for real by
+    `apps.customers.services.registration_service.RegistrationService` (Issue #176) --
+    exercised directly by `shared/tests/integration/test_outbox_and_idempotency.py`.
   - `consumer.py` — `IdempotentConsumer` base class plus `declare_topology()`, the
     `<queue>`/`<queue>.retry`/`<queue>.dlq` declaration helper implementing ADR 0005's
     30s/2m/10m backoff schedule.
 - `api/` — the custom DRF exception handler and API-conventions-proof endpoint
   (Issue #128, Phase 6). See [docs/api/conventions.md](../../docs/api/conventions.md).
+  `serializers.py::StrictSerializer` (Issue #176) is the base every module's input serializer
+  subclasses to satisfy ADR 0006's "unknown/unexpected fields are rejected, not silently
+  ignored" -- a plain `serializers.Serializer` otherwise drops any key in `initial_data` that
+  isn't a declared field.
 - `permissions/` — `base.py::TwoStepPermission` (Issue #175, Phase 10), the reusable DRF
   `BasePermission` every protected endpoint from here onward composes with: step one checks
   `request.user.has_rbac_permission(permission)` (does the user hold *any* role granting this
