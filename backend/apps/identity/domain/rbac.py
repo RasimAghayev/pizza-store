@@ -83,6 +83,19 @@ BRANCH_SCOPED_ROLES = frozenset(
 # "products.view" alongside its existing branches.view -- cashiers ring up menu items,
 # kitchen staff build them, inventory managers track their toppings' sku_reference, etc.,
 # the same breadth already established for branches.view.
+#
+# menu.* (Issue #182): unlike Product, MenuItem's `scope_branch_id()` returns its own real
+# branch id (see apps/menu/api/views.py's `_ScopesToOwningBranch`), so a branch-scoped
+# assignment CAN satisfy TwoStepPermission's step 2 for a MenuItem write -- "menu.edit" is
+# granted to exactly the same roles already holding "branches.edit" (SUPER_ADMIN,
+# ORGANIZATION_OWNER, RESTAURANT_MANAGER, BRANCH_MANAGER): whoever can edit a branch's own
+# operational fields (hours/closures) can also edit that branch's menu. MenuCategory, by
+# contrast, is org-wide like Product (`_ScopesToOwningOrganization`, `scope_branch_id()`
+# always None) -- a branch-scoped holder of "menu.edit" can still toggle/edit their own
+# branch's items but is correctly denied at step 2 when attempting to create a new
+# org-wide category, with no separate rule needed (same self-enforcing mechanism already
+# relied on for Branch/Organization creation). Every other staff role gets "menu.view"
+# alongside its existing branches.view/products.view breadth.
 ROLE_PERMISSIONS: dict[RoleCode, frozenset[str]] = {
     RoleCode.CUSTOMER: frozenset(),
     RoleCode.VERIFIED_CUSTOMER: frozenset(),
@@ -96,6 +109,8 @@ ROLE_PERMISSIONS: dict[RoleCode, frozenset[str]] = {
             "branches.edit",
             "products.view",
             "products.edit",
+            "menu.view",
+            "menu.edit",
         }
     ),
     RoleCode.ORGANIZATION_OWNER: frozenset(
@@ -107,23 +122,43 @@ ROLE_PERMISSIONS: dict[RoleCode, frozenset[str]] = {
             "branches.edit",
             "products.view",
             "products.edit",
+            "menu.view",
+            "menu.edit",
         }
     ),
-    RoleCode.ACCOUNTANT: frozenset({"restaurants.view", "branches.view", "products.view"}),
-    RoleCode.MARKETING_MANAGER: frozenset({"restaurants.view", "branches.view", "products.view"}),
+    RoleCode.ACCOUNTANT: frozenset(
+        {"restaurants.view", "branches.view", "products.view", "menu.view"}
+    ),
+    RoleCode.MARKETING_MANAGER: frozenset(
+        {"restaurants.view", "branches.view", "products.view", "menu.view"}
+    ),
     RoleCode.RESTAURANT_MANAGER: frozenset(
-        {"restaurants.view", "branches.view", "branches.edit", "products.view"}
+        {
+            "restaurants.view",
+            "branches.view",
+            "branches.edit",
+            "products.view",
+            "menu.view",
+            "menu.edit",
+        }
     ),
     RoleCode.BRANCH_MANAGER: frozenset(
-        {"restaurants.view", "branches.view", "branches.edit", "products.view"}
+        {
+            "restaurants.view",
+            "branches.view",
+            "branches.edit",
+            "products.view",
+            "menu.view",
+            "menu.edit",
+        }
     ),
-    RoleCode.CASHIER: frozenset({"branches.view", "products.view"}),
-    RoleCode.KITCHEN_MANAGER: frozenset({"branches.view", "products.view"}),
-    RoleCode.KITCHEN_STAFF: frozenset({"branches.view", "products.view"}),
-    RoleCode.DELIVERY_MANAGER: frozenset({"branches.view", "products.view"}),
-    RoleCode.COURIER: frozenset({"branches.view", "products.view"}),
-    RoleCode.INVENTORY_MANAGER: frozenset({"branches.view", "products.view"}),
-    RoleCode.CUSTOMER_SUPPORT: frozenset({"branches.view", "products.view"}),
+    RoleCode.CASHIER: frozenset({"branches.view", "products.view", "menu.view"}),
+    RoleCode.KITCHEN_MANAGER: frozenset({"branches.view", "products.view", "menu.view"}),
+    RoleCode.KITCHEN_STAFF: frozenset({"branches.view", "products.view", "menu.view"}),
+    RoleCode.DELIVERY_MANAGER: frozenset({"branches.view", "products.view", "menu.view"}),
+    RoleCode.COURIER: frozenset({"branches.view", "products.view", "menu.view"}),
+    RoleCode.INVENTORY_MANAGER: frozenset({"branches.view", "products.view", "menu.view"}),
+    RoleCode.CUSTOMER_SUPPORT: frozenset({"branches.view", "products.view", "menu.view"}),
 }
 
 
