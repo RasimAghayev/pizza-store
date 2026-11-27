@@ -51,26 +51,26 @@ replicaCount:
 
 resources:
   backend:
-    requests: { cpu: "250m", memory: "256Mi" }
-    limits: { cpu: "1000m", memory: "512Mi" }
+    requests: {cpu: "250m", memory: "256Mi"}
+    limits: {cpu: "1000m", memory: "512Mi"}
   frontend:
-    requests: { cpu: "100m", memory: "128Mi" }
-    limits: { cpu: "500m", memory: "256Mi" }
+    requests: {cpu: "100m", memory: "128Mi"}
+    limits: {cpu: "500m", memory: "256Mi"}
   nginx:
-    requests: { cpu: "50m", memory: "64Mi" }
-    limits: { cpu: "500m", memory: "128Mi" }
+    requests: {cpu: "50m", memory: "64Mi"}
+    limits: {cpu: "500m", memory: "128Mi"}
   postgres:
-    requests: { cpu: "250m", memory: "256Mi" }
-    limits: { cpu: "1000m", memory: "512Mi" }
+    requests: {cpu: "250m", memory: "256Mi"}
+    limits: {cpu: "1000m", memory: "512Mi"}
   mongodb:
-    requests: { cpu: "250m", memory: "256Mi" }
-    limits: { cpu: "1000m", memory: "512Mi" }
+    requests: {cpu: "250m", memory: "256Mi"}
+    limits: {cpu: "1000m", memory: "512Mi"}
   redis:
-    requests: { cpu: "100m", memory: "128Mi" }
-    limits: { cpu: "500m", memory: "256Mi" }
+    requests: {cpu: "100m", memory: "128Mi"}
+    limits: {cpu: "500m", memory: "256Mi"}
   rabbitmq:
-    requests: { cpu: "250m", memory: "256Mi" }
-    limits: { cpu: "1000m", memory: "512Mi" }
+    requests: {cpu: "250m", memory: "256Mi"}
+    limits: {cpu: "1000m", memory: "512Mi"}
 
 # Sized for this project's documented synthetic-dataset scale (master prompt §10), not
 # real production volume -- same sizing philosophy as ADR 0007's VPS baseline.
