@@ -287,3 +287,19 @@ def test_price_quote_for_half_and_half_averages_the_two_products(client):
 
     assert response.status_code == 200
     assert response.json()["price"] == "12.00"
+
+
+@pytest.mark.django_db
+def test_price_quote_for_a_topping_not_attached_to_the_product_returns_a_generic_error(client):
+    product = ProductFactory()
+    topping = ToppingFactory()
+
+    response = _post_json(
+        client, f"{PRODUCTS_URL}{product.pk}/price-quote/", {"topping_ids": [topping.pk]}
+    )
+
+    assert response.status_code == 400
+    # A fixed, generic message -- never the raw internal exception text.
+    assert response.json()["error"]["details"] == {
+        "non_field_errors": "Invalid price quote selection."
+    }

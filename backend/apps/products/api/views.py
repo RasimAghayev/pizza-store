@@ -333,7 +333,12 @@ class PriceQuoteView(APIView):
                     quantity=quantity,
                 )
         except InvalidPriceQuoteError as exc:
-            raise exceptions.ValidationError(str(exc)) from exc
+            # A fixed, generic message -- never the raw exception text (CodeQL: "information
+            # exposure through an exception") -- consistent with every other translated
+            # domain error in this file, none of which forward `str(exc)` to the client.
+            raise exceptions.ValidationError(
+                {"non_field_errors": "Invalid price quote selection."}
+            ) from exc
         return Response(PriceQuoteResponseSerializer({"price": price}).data)
 
 
