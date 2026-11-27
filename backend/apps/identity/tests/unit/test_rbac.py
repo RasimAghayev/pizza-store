@@ -30,7 +30,13 @@ def test_super_admin_and_customer_facing_roles_carry_no_scope():
 def test_permissions_for_unions_across_multiple_roles():
     permissions = permissions_for([RoleCode.SUPER_ADMIN, RoleCode.ORGANIZATION_OWNER])
 
-    assert permissions == {"identity.manage_roles"}
+    assert permissions == {
+        "identity.manage_roles",
+        "restaurants.view",
+        "restaurants.edit",
+        "branches.view",
+        "branches.edit",
+    }
 
 
 def test_permissions_for_empty_role_list_is_empty():
