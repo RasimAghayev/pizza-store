@@ -34,7 +34,7 @@ resource "aws_lb_target_group" "backend" {
   target_type = "ip" # required for awsvpc network mode (Fargate)
 
   health_check {
-    path                = "/api/schema/"
+    path                = "/health/"
     healthy_threshold   = 2
     unhealthy_threshold = 3
     interval            = 30
