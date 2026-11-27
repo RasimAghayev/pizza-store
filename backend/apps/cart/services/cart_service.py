@@ -158,12 +158,15 @@ class CartService:
 
         if product_id is not None:
             product_ids = [product_id]
-        else:
-            assert half_and_half is not None  # exactly one is set, checked above
+        elif half_and_half is not None:
             product_ids = [
                 half_and_half["first"]["product_id"],
                 half_and_half["second"]["product_id"],
             ]
+        else:
+            raise InvalidCartItemSelectionError(
+                "Exactly one of product_id or half_and_half must be provided."
+            )
         for pid in product_ids:
             if not self._menu_service.is_orderable_now(branch_id=branch_id, product_id=pid):
                 raise ProductNotOrderableError(
