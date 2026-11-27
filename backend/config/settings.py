@@ -50,9 +50,9 @@ INSTALLED_APPS = [
     "apps.products",
     "apps.menu",
     "health",
-    # Registered as an app (zero concrete models of its own) purely so Django's
-    # management-command discovery finds shared/management/commands/relay_outbox.py
-    # (Issue #130) -- see that file.
+    # Registered as an app for Django's management-command discovery
+    # (shared/management/commands/relay_outbox.py, Issue #130) and, since Issue #195, for its
+    # own concrete model -- shared/idempotency/models.py::IdempotencyKey.
     "shared",
 ]
 

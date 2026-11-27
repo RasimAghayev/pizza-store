@@ -44,6 +44,20 @@ domain/business logic for a specific module (that belongs under `backend/apps/<m
   on. Scope is always re-derived from the object, never trusted from JWT claims alone, so a
   stale or ambiguous claim can't widen access. Calls only duck-typed methods on `request.user`
   — no import of `apps.identity`, per this directory's own charter above.
+- `idempotency/` — `models.py::IdempotencyKey`, `service.py::IdempotencyService`, and
+  `drf.py::IdempotentActionMixin` (Issue #195, Phase 11): guards a client-retried,
+  side-effecting HTTP request (order checkout, payment capture) against duplicate execution.
+  **Not the same mechanism as** `events/idempotent.py` above — that one de-duplicates a
+  RabbitMQ message *delivery* on the consumer side; this one has no broker involvement at
+  all, it de-duplicates a client's own repeated HTTP request identified by the
+  `Idempotency-Key` header it sends. `IdempotencyService.run_once()` is framework-agnostic
+  (any caller can use it directly); `IdempotentActionMixin.perform_idempotent()` is the DRF
+  entry point a view opts into per-action, reading that header, and is the one real endpoints
+  (Issue #197's checkout, Issue #198's payment capture) are expected to use. A reused key with
+  a different request body raises `IdempotencyConflictError` (mapped to the error envelope's
+  `409 conflict` by the mixin, new since this Issue — see `api/exception_handler.py`'s
+  `_STATUS_CODE_TO_ERROR_CODE`); a reused key by a different user raises
+  `IdempotencyKeyOwnershipError` (mapped to `403 permission_denied`).
 - `tests/integration/test_multi_tenant_isolation.py` (Issue #183, Phase 10 close-out) —
   `TwoStepPermission` proven end-to-end across every staff-facing resource Phase 10 built
   (`restaurants`, `branches`, `products`, `menu`), not just one module's own suite: two full
