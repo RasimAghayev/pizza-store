@@ -201,7 +201,7 @@ Compose `healthcheck:` reported `healthy` (the other five — `loki`, `promtail`
 shell, so they carry no `CMD-SHELL` healthcheck by design, documented in
 `docker-compose.yml` itself):
 
-```
+```text
 pizza-store-alertmanager-1        Up 7 minutes (healthy)
 pizza-store-backend-1             Up 6 minutes (healthy)
 pizza-store-frontend-1            Up 7 minutes (healthy)
@@ -224,7 +224,7 @@ pizza-store-redis-exporter-1      Up 7 minutes
 Real HTTPS request against nginx's own TLS listener, verified with the mkcert root CA (no
 `-k`/`--insecure`):
 
-```
+```text
 $ curl -i --cacert rootCA.pem https://localhost:8443/healthz
 HTTP/1.1 200 OK
 Server: nginx/1.27.5
@@ -236,7 +236,7 @@ ok
 
 Real HTTP→HTTPS redirect on port 8080:
 
-```
+```text
 $ curl -i http://localhost:8080/healthz
 HTTP/1.1 301 Moved Permanently
 Server: nginx/1.27.5
@@ -251,7 +251,7 @@ port purely so it coexists with other local services, which is why manually hitt
 Real TLS chain verification with `openssl s_client`, confirming the full chain validates
 against the mkcert root CA:
 
-```
+```text
 $ echo | openssl s_client -connect localhost:8443 -CAfile rootCA.pem
 subject=O = mkcert development certificate, OU = root@<host>
 issuer=O = mkcert development CA, OU = root@<host>, CN = mkcert root@<host>
