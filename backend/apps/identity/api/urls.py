@@ -6,6 +6,7 @@ from apps.identity.api.views import (
     PasswordResetConfirmView,
     PasswordResetRequestView,
     RefreshView,
+    SocialLoginView,
 )
 
 urlpatterns = [
@@ -21,5 +22,10 @@ urlpatterns = [
         "password-reset/confirm/",
         PasswordResetConfirmView.as_view(),
         name="auth-password-reset-confirm",
+    ),
+    path(
+        "social/<str:provider>/",
+        SocialLoginView.as_view(),
+        name="auth-social-login",
     ),
 ]

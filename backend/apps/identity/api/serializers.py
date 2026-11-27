@@ -22,3 +22,15 @@ class PasswordResetRequestSerializer(StrictSerializer):
 class PasswordResetConfirmSerializer(StrictSerializer):
     token = serializers.CharField(trim_whitespace=False)
     new_password = serializers.CharField(trim_whitespace=False)
+
+
+class SocialLoginSerializer(StrictSerializer):
+    """Shared across google/apple/facebook (Issue #178): Google/Apple only ever send
+    id_token, Facebook sends either id_token (Limited Login) or access_token (classic OAuth2)
+    -- see each provider's own verify_token() in django-allauth. Which field is actually
+    required for a given provider is validated by that provider's verify_token() itself (it
+    raises its own "invalid_token" error when the one it needs is missing), not duplicated
+    here, so the requirement stays defined in exactly one place."""
+
+    id_token = serializers.CharField(required=False, allow_blank=False, trim_whitespace=False)
+    access_token = serializers.CharField(required=False, allow_blank=False, trim_whitespace=False)

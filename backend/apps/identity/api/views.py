@@ -9,6 +9,7 @@ from apps.identity.api.serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     RefreshSerializer,
+    SocialLoginSerializer,
 )
 from apps.identity.api.throttling import (
     LoginAccountRateThrottle,
@@ -16,12 +17,19 @@ from apps.identity.api.throttling import (
     PasswordResetConfirmRateThrottle,
     PasswordResetRequestRateThrottle,
     RefreshRateThrottle,
+    SocialLoginRateThrottle,
 )
 from apps.identity.services.password_recovery_service import (
     InvalidResetTokenError,
     PasswordRecoveryService,
 )
 from apps.identity.services.session_service import InvalidCredentialsError, SessionService
+from apps.identity.services.social_login_service import (
+    AccountExistsUnlinkedError,
+    InvalidProviderTokenError,
+    SocialLoginService,
+    UnknownProviderError,
+)
 from apps.identity.services.token_service import (
     ACCESS_TOKEN_LIFETIME,
     REFRESH_TOKEN_LIFETIME,
@@ -211,6 +219,67 @@ class LogoutView(APIView):
         response = Response({"message": "Logged out."})
         if client_type == "browser":
             _clear_auth_cookies(response, version=version)
+        return response
+
+
+class SocialLoginView(_ReturnsAuthenticationFailedAs401, APIView):
+    """calls SocialLoginService.complete_login() -- see
+    apps/identity/services/social_login_service.py. One view/URL pattern parameterized by
+    `provider` rather than three duplicated view classes; `provider` itself is validated by
+    SocialLoginService (UnknownProviderError -> 404), not by the URL pattern, so the error
+    envelope stays consistent with every other "resource not found" case."""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+    throttle_classes = [SocialLoginRateThrottle]
+
+    def post(self, request, version, provider):
+        client_type = _client_type(request)
+        serializer = SocialLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            pair = SocialLoginService().complete_login(
+                provider_id=provider,
+                token=dict(serializer.validated_data),
+                device_label=request.headers.get("User-Agent", "")[:255],
+                ip_address=_client_ip(request),
+            )
+        except UnknownProviderError as exc:
+            raise exceptions.NotFound("Unknown social login provider.") from exc
+        except InvalidProviderTokenError as exc:
+            # Generic, exception-independent message -- never forward str(exc) into a
+            # client-facing response (CodeQL py/stack-trace-exposure, CWE-209).
+            raise exceptions.AuthenticationFailed("Invalid or expired provider token.") from exc
+        except AccountExistsUnlinkedError as exc:
+            # Distinct, actionable error (Issue #178 Security Requirements) -- an existing
+            # unlinked account must never be silently merged into, so the client needs to
+            # detect this case specifically rather than seeing a generic validation failure.
+            raise exceptions.ValidationError(
+                {
+                    "account_exists_unlinked": (
+                        "An account already exists for this email. Log in with your "
+                        "password, then link this provider from account settings."
+                    )
+                }
+            ) from exc
+
+        # Seeds the CSRF cookie needed for the subsequent cookie-authenticated
+        # refresh/logout calls in browser mode -- same rationale as LoginView above.
+        get_token(request)
+
+        if client_type == "browser":
+            response = Response({"message": "Login successful."})
+            _set_auth_cookies(
+                response,
+                access_token=pair.access_token,
+                refresh_token=pair.refresh_token,
+                version=version,
+            )
+        else:
+            response = Response(
+                {"access_token": pair.access_token, "refresh_token": pair.refresh_token}
+            )
         return response
 
 

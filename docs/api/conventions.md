@@ -81,6 +81,20 @@ the two tokens every other authenticated endpoint will rely on: a short-lived RS
 access token (15 min) and an opaque, rotate-on-use refresh token (14 days, only its SHA-256
 hash persisted).
 
+### Social login (Issue #178)
+
+`POST /api/v1/auth/social/{google,apple,facebook}/` verify the provider's token server-side
+(`backend/apps/identity/services/social_login_service.py::SocialLoginService`, via
+django-allauth's non-headless `socialaccount` core) and, on success, issue the same real
+access/refresh pair as `POST /login/` -- same `X-Client-Type` header, same cookie-vs-body
+delivery, same response shape. Request body: `{"id_token": "..."}` for Google/Apple,
+`{"id_token": "..."}` or `{"access_token": "..."}` for Facebook (its classic OAuth2 flow uses
+`access_token`, its OIDC-based "Limited Login" uses `id_token`). An unknown `provider` path
+segment is a `404 not_found`; an invalid/expired provider token is a
+`401 authentication_failed`; a provider-verified email that matches an existing, unlinked
+account is a `400 validation_error` with an `account_exists_unlinked` key in `details` --
+this project never silently merges a social login into an existing email/password account.
+
 ### `X-Client-Type` header
 
 Every auth request must send `X-Client-Type: browser` or `X-Client-Type: native`; its
@@ -116,6 +130,7 @@ Redis-backed (`django_redis`, `CACHES["default"]`), via DRF's `ScopedRateThrottl
 | `login`                    | 10/min  | client IP                            | `POST /login/`                       |
 | `login_account`            | 5/min   | submitted email (independent of IP)  | `POST /login/`                       |
 | `refresh`                  | 30/min  | client IP                            | `POST /refresh/`                     |
+| `social_login`             | 10/min  | client IP                            | `POST /auth/social/{google,apple,facebook}/` |
 | `otp_request`              | 18/hour | client IP                            | `POST /customers/verify/{email,phone}/request/` |
 | `otp_confirm`              | 30/hour | client IP                            | `POST /customers/verify/{email,phone}/confirm/` |
 | `password_reset_request`   | 18/hour | submitted email (independent of IP)  | `POST /auth/password-reset/request/` |

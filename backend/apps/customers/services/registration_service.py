@@ -46,9 +46,29 @@ class RegistrationService:
     def register(self, *, email: str, password: str) -> Customer:
         with transaction.atomic():
             user = self._identity_registration_service.register(email=email, password=password)
-            customer = self._customer_repository.create(user_id=user.pk)
-            self._role_assignment_service.assign(user=user, role_code=RoleCode.CUSTOMER)
-            self._publish_customer_registered(customer, email=user.email)
+            return self._provision_customer(user)
+
+    def provision_customer(self, user) -> Customer:
+        """Creates the Customer profile, assigns the `customer` role, and publishes
+        CustomerRegistered for an identity.User that already exists -- the second half of
+        register() above, factored out so
+        apps.identity.services.social_login_service.SocialLoginService (Issue #178) can reuse
+        it for a social-login-created User on its first-ever login, without duplicating this
+        module's own create-Customer/assign-role/publish-event logic. Idempotent: a second
+        call for a user who already has a Customer row returns the existing row and performs
+        no further writes -- SocialLoginService calls this unconditionally on every login
+        rather than pre-checking, since "does a Customer already exist" is exactly this
+        method's own job to decide, not a judgment call to duplicate in every caller."""
+        with transaction.atomic():
+            existing = self._customer_repository.get_by_user_id(user.pk)
+            if existing is not None:
+                return existing
+            return self._provision_customer(user)
+
+    def _provision_customer(self, user) -> Customer:
+        customer = self._customer_repository.create(user_id=user.pk)
+        self._role_assignment_service.assign(user=user, role_code=RoleCode.CUSTOMER)
+        self._publish_customer_registered(customer, email=user.email)
         return customer
 
     def _publish_customer_registered(self, customer: Customer, *, email: str) -> None:
