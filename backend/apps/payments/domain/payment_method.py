@@ -8,3 +8,7 @@ class PaymentMethod(StrEnum):
 
     CASH_ON_DELIVERY = "cash_on_delivery"
     MOCK_ONLINE = "mock_online"
+    # Registered at runtime by apps.wallet.apps.WalletConfig.ready() via register_gateway()
+    # below, never imported here -- apps.payments must not depend on apps.wallet (Issue #199
+    # Architecture Requirements; ADR 0004 one-way dependency direction).
+    WALLET = "wallet"

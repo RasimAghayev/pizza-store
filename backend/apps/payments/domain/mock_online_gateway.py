@@ -31,6 +31,7 @@ class MockOnlineGateway(PaymentGateway):
         currency: str,
         payment_method_token: str | None,
         idempotency_key: str,
+        customer_id: int,
     ) -> AuthorizationResult:
         if not payment_method_token:
             return AuthorizationResult(
@@ -59,7 +60,7 @@ class MockOnlineGateway(PaymentGateway):
             provider_reference=authorization_id,
         )
 
-    def refund(self, *, capture_id: str, amount: Decimal) -> RefundResult:
+    def refund(self, *, capture_id: str, amount: Decimal, customer_id: int) -> RefundResult:
         return RefundResult(
             success=True,
             refund_id=f"mock_refund_{uuid.uuid4()}",

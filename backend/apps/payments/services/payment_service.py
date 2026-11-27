@@ -85,6 +85,7 @@ class PaymentService:
             currency=DEFAULT_CURRENCY,
             payment_method_token=payment_method_token,
             idempotency_key=idempotency_key,
+            customer_id=customer_id,
         )
         capture = (
             gateway.capture(authorization_id=authorization.authorization_id, amount=amount)

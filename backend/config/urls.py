@@ -50,4 +50,7 @@ urlpatterns = [
     path("api/<str:version>/orders/", include("apps.orders.api.urls")),
     # calls POST /api/v1/payments/ -- see backend/apps/payments/api/views.py (Issue #198)
     path("api/<str:version>/payments/", include("apps.payments.api.urls")),
+    # calls GET /api/v1/wallet/, POST /api/v1/wallet/topup/ -- see
+    # backend/apps/wallet/api/views.py (Issue #199)
+    path("api/<str:version>/wallet/", include("apps.wallet.api.urls")),
 ]

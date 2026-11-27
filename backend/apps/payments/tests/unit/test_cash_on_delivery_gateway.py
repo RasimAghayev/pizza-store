@@ -5,7 +5,11 @@ from apps.payments.domain.cash_on_delivery_gateway import CashOnDeliveryGateway
 
 def test_authorize_always_succeeds():
     result = CashOnDeliveryGateway().authorize(
-        amount=Decimal("12.50"), currency="USD", payment_method_token=None, idempotency_key="k1"
+        amount=Decimal("12.50"),
+        currency="USD",
+        payment_method_token=None,
+        idempotency_key="k1",
+        customer_id=1,
     )
 
     assert result.success is True
@@ -21,7 +25,9 @@ def test_capture_always_succeeds():
 
 
 def test_refund_always_succeeds():
-    result = CashOnDeliveryGateway().refund(capture_id="cod_capture_1", amount=Decimal("12.50"))
+    result = CashOnDeliveryGateway().refund(
+        capture_id="cod_capture_1", amount=Decimal("12.50"), customer_id=1
+    )
 
     assert result.success is True
     assert result.refund_id
