@@ -192,6 +192,21 @@ Current `kubectl` (1.37.x) needs live API-server access to download OpenAPI sche
 client-dry-run mode — this is not an offline check. Run it against a real (even if local/
 disposable) cluster instead of expecting a fully offline validation.
 
+**`backend` Pods restart once or twice right after a fresh `helm install`, then stabilize on
+their own.** Real behavior hit during the Issue #161 close-out re-validation (the original
+Issue #159 run reported `0` restarts; this run did not). `kubectl describe pod` showed
+`connect: connection refused` on both probes, not the `400`/`ALLOWED_HOSTS` failure mode
+above — `postgres`'s own Pod was still finishing its own startup when `backend`'s
+`livenessProbe` (`initialDelaySeconds: 10`, `failureThreshold: 5`) ran out of patience and the
+kubelet killed the container before Django ever finished its own startup-time DB check and
+bound the port. Unlike the equivalent Swarm race (see `swarm.md`'s Troubleshooting), a
+Kubernetes Deployment's default `restartPolicy: Always` keeps retrying regardless of the
+previous exit reason, so this is self-healing without any manual step — after 2 restarts per
+Pod, both reached `1/1 Running` and stayed there. No init container gates `backend` on
+`postgres`'s readiness (same class of gap as Swarm's missing `depends_on`), so seeing 1-2
+restarts on a cold start is expected timing noise, not a regression, as long as the Pods
+converge to stable `Running`/`Ready` afterward.
+
 ## Validation evidence (2026-11-27)
 
 Real local `kind` cluster (`pizza-store-validation`, Calico CNI, default CNI disabled,
@@ -226,3 +241,14 @@ Real local `kind` cluster (`pizza-store-validation`, Calico CNI, default CNI dis
 - **Clean teardown**: `helm uninstall pizza-store -n pizza-store`, `kubectl delete namespace
   pizza-store`, `kind delete cluster --name pizza-store-validation` — confirmed via `kind get
   clusters` reporting `No kind clusters found.`, no lingering state.
+
+**Re-validation (Issue #161, Epic #12 close-out)**: re-ran this entire procedure fresh against
+`test`'s then-current tip on a brand-new `kind` cluster (same Calico/`disableDefaultCNI`
+setup), independent of this file's own claims above. Result: `helm lint` and the
+`dry-run=client` apply both still passed with `0` findings, all 10 Pods again reached
+`Running`/`Ready`, the positive-control and `NetworkPolicy` enforcement proofs above
+reproduced with near-identical timings (`3.470s` blocked vs. `3.455s` originally; `0.663s`
+allowed vs. `0.557s` originally), and teardown was again clean. One new finding not seen
+during the original run is now documented under Troubleshooting above (`backend` Pods
+restarting 1-2 times on a cold start before stabilizing). No chart change was needed; this is
+an inherent Kubernetes-Deployment timing property, not a regression.
